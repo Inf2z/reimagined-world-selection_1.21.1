@@ -1,0 +1,26 @@
+{
+  "gui.reimagined.mode": "Mode",
+  "gui.reimagined.version": "Version",
+  "gui.reimagined.select_world": "Select a world",
+
+  "reimagined.config.panel_width_ratio": "Panel Width Ratio",
+  "reimagined.config.panel_width_ratio.tooltip": "Controls how much of the screen width is used by the left information panel.",
+
+  "reimagined.config.show_folder_name": "Show Folder Name",
+  "reimagined.config.show_folder_name.tooltip": "Shows the internal save folder name under the world title.",
+
+  "reimagined.config.show_cheats": "Show Cheats Status",
+  "reimagined.config.show_cheats.tooltip": "Shows whether cheats are enabled in the selected world.",
+
+  "reimagined.config.panel_opacity": "Panel Opacity",
+  "reimagined.config.panel_opacity.tooltip": "Controls the transparency of the left information panel background.",
+
+  "reimagined.config.panel_background_style": "Panel Background Style",
+  "reimagined.config.panel_background_style.tooltip": "Chooses the background color style of the left information panel.",
+  "reimagined.config.panel_background_style.black": "Black",
+  "reimagined.config.panel_background_style.gray": "Gray",
+
+  "reimagined_world_selection.configuration.title": "Reimagined World Selection Configuration",
+  "reimagined_world_selection.configuration.section.reimagined.world.selection.client.toml": "Client Settings",
+  "reimagined_world_selection.configuration.section.reimagined.world.selection.client.toml.title": "Reimagined World Selection Client Settings"
+}

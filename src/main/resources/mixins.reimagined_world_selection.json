@@ -1,0 +1,13 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "com.inf2z.reimagined_world_selection.mixin",
+  "compatibilityLevel": "JAVA_21",
+  "client": [
+    "SelectWorldAccessor",
+    "EntryAccessor",
+    "SelectWorldMixin",
+    "ScreenAccessor"
+  ],
+  "injectors": { "defaultRequire": 1 }
+}

@@ -1,0 +1,9 @@
+{
+  "gui.reimagined.mode": "Режим",
+  "gui.reimagined.version": "Версия",
+  "gui.reimagined.select_world": "Выберите мир",
+  "reimagined.config.panel_width_ratio": "Ширина панели",
+  "reimagined.config.show_folder_name": "Название папки мира",
+  "reimagined.config.show_cheats": "Статус читов",
+  "reimagined.config.panel_opacity": "Прозрачность панели"
+}
