@@ -36,8 +36,10 @@ With KubeJS, you have many ways to manipulate these values.
 - RWS.unfreeze(lineNumber) — Unfreezes the variable, allowing it to be changed again.
 
 ### Config Examples:
-- Custom Line (1-3) Label: Killed / Died / Cool Guy
-- Custom Line (1-3) Format: %var% Zombies / %var% times / %var%
+- Custom Line (1-3) Label: Killed / Golden Leggings is / Cool Guy
+- Custom Line (1-3) Format: %var% Zombies / %var% / %var%
 - Custom Line (1-3) Mode: VALUE / ON_OFF / BOOLEAN
   
 ##### Note: Variable data is saved securely inside each specific world's folder (reimagined_vars.json), meaning your stats are always tied to the correct save!
+##### P.S: This mod was by 99.9% AI-coded :P (at least not made in MCreator)
+##### P.P.S: I was heavily inspired by [Reimagined World Menu](https://modrinth.com/mod/reimagined-world-menu), so also check out this mod!! :D
