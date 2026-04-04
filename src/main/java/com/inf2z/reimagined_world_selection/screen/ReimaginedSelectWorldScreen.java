@@ -1,6 +1,7 @@
 package com.inf2z.reimagined_world_selection.screen;
 
 import com.inf2z.reimagined_world_selection.Config;
+import com.inf2z.reimagined_world_selection.api.WorldSelectionAPI;
 import com.inf2z.reimagined_world_selection.mixin.WorldListEntryAccessor;
 import com.mojang.blaze3d.platform.NativeImage;
 import net.minecraft.ChatFormatting;
@@ -21,12 +22,10 @@ import net.minecraft.world.level.storage.LevelSummary;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.annotation.ParametersAreNonnullByDefault;
-import javax.annotation.Nullable;
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
+import javax.annotation.ParametersAreNonnullByDefault;
 import java.io.InputStream;
-import java.lang.reflect.Field;
-import java.lang.reflect.Modifier;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.text.SimpleDateFormat;
@@ -35,6 +34,7 @@ import java.util.*;
 @ParametersAreNonnullByDefault
 public class ReimaginedSelectWorldScreen extends SelectWorldScreen {
     private static final Logger LOGGER = LoggerFactory.getLogger(ReimaginedSelectWorldScreen.class);
+
     private int panelWidth;
     private WorldSelectionList cachedList;
     private final Map<String, ResourceLocation> iconCache = new HashMap<>();
@@ -43,20 +43,6 @@ public class ReimaginedSelectWorldScreen extends SelectWorldScreen {
 
     public ReimaginedSelectWorldScreen(@Nullable Screen lastScreen) {
         super(lastScreen);
-        hideVanillaTitle();
-    }
-
-    private void hideVanillaTitle() {
-        try {
-            Field titleField = Screen.class.getDeclaredField("title");
-            titleField.setAccessible(true);
-            Field modifiersField = Field.class.getDeclaredField("modifiers");
-            modifiersField.setAccessible(true);
-            modifiersField.setInt(titleField, titleField.getModifiers() & ~Modifier.FINAL);
-            titleField.set(this, Component.empty());
-        } catch (Exception e) {
-            LOGGER.error("Failed to hide vanilla title", e);
-        }
     }
 
     @Override
@@ -85,6 +71,7 @@ public class ReimaginedSelectWorldScreen extends SelectWorldScreen {
                     widget.setX(-10000);
                     continue;
                 }
+
                 if (widget instanceof WorldSelectionList list) {
                     this.cachedList = list;
                     list.setWidth(rw - 40);
@@ -104,15 +91,19 @@ public class ReimaginedSelectWorldScreen extends SelectWorldScreen {
         if (buttons.isEmpty()) return;
         Map<Integer, List<AbstractWidget>> rows = new TreeMap<>();
         for (AbstractWidget w : buttons) rows.computeIfAbsent((w.getY() / 10) * 10, k -> new ArrayList<>()).add(w);
+
         for (List<AbstractWidget> row : rows.values()) {
             row.sort(Comparator.comparingInt(AbstractWidget::getX));
             int spacing = 4;
             int totalSpacing = spacing * (row.size() - 1);
             int maxAvailableWidth = rw - 40 - totalSpacing;
             int originalWidth = 0;
+
             for (AbstractWidget w : row) originalWidth += w.getWidth();
+
             float scale = originalWidth > maxAvailableWidth ? (float) maxAvailableWidth / originalWidth : 1.0f;
             int currentX = rx + (rw - (int)(originalWidth * scale) - totalSpacing) / 2;
+
             for (AbstractWidget w : row) {
                 w.setX(currentX);
                 w.setWidth((int) (w.getWidth() * scale));
@@ -125,16 +116,13 @@ public class ReimaginedSelectWorldScreen extends SelectWorldScreen {
     public void render(GuiGraphics gui, int mouseX, int mouseY, float tick) {
         int originalWidth = this.width;
         int rw = this.width - this.panelWidth;
-
         int desiredCenter = this.panelWidth + rw / 2;
 
         this.width = desiredCenter * 2;
-
         super.render(gui, mouseX, mouseY, tick);
-
         this.width = originalWidth;
 
-        int alpha = 102;
+        int alpha = Config.PANEL_ALPHA.get();
         int bgColor = (Config.PANEL_BACKGROUND_STYLE.get() == Config.BackgroundStyle.GRAY) ? 0x1A1A1A : 0x000000;
 
         gui.fill(0, 0, this.panelWidth, this.height, (alpha << 24) | bgColor);
@@ -149,27 +137,106 @@ public class ReimaginedSelectWorldScreen extends SelectWorldScreen {
         int cx = this.panelWidth / 2;
         int y = 20;
         int pW = this.panelWidth - 20;
+
         int iconHeight = pW * 9 / 16;
-
         gui.blit(loadLargeIcon(s), cx - pW / 2, y, 0, 0, pW, iconHeight, pW, iconHeight);
-
         y += iconHeight + 12;
-        y = drawScaled(gui, s.getLevelName(), cx, y, 0xFFFFFF, pW, true, false);
-        y += 2;
-        y = drawScaled(gui, "(" + s.getLevelId() + ")", cx, y, 0x777777, pW, false, true);
-        y += 12;
-        String modeText = s.isHardcore() ? "Hardcore!" : s.getGameMode().getName().substring(0, 1).toUpperCase() + s.getGameMode().getName().substring(1);
-        int modeColor = s.isHardcore() ? 0xFFFF0000 : 0xAAAAAA;
-        renderLine(gui, "Mode: ", modeText, cx, y, modeColor, pW);
-        y += 12;
-        renderLine(gui, "Version: ", s.levelVersion().minecraftVersionName(), cx, y, 0xAAAAAA, pW);
-        y += 12;
-        Integer redColorObj = ChatFormatting.RED.getColor();
-        int cheatsColor = (redColorObj != null && s.hasCommands()) ? redColorObj : 0xAAAAAA;
-        renderLine(gui, "Commands: ", s.hasCommands() ? "ON" : "OFF", cx, y, cheatsColor, pW);
-        y += 15;
-        String dateStr = "(" + dateFormat.format(new Date(s.getLastPlayed())) + ")";
-        drawScaled(gui, dateStr, cx, y, 0x777777, pW, false, true);
+
+        if (Config.SHOW_WORLD_NAME.get()) {
+            y = drawScaled(gui, s.getLevelName(), cx, y, 0xFFFFFF, pW, true, false);
+            y += 2;
+        }
+
+        if (Config.SHOW_FOLDER_NAME.get()) {
+            y = drawScaled(gui, "(" + s.getLevelId() + ")", cx, y, 0x777777, pW, false, true);
+            y += 8;
+        } else {
+            y += 6;
+        }
+
+        if (Config.SHOW_GAME_MODE.get()) {
+            String modeText = s.isHardcore() ? "Hardcore!" : s.getGameMode().getName().substring(0, 1).toUpperCase() + s.getGameMode().getName().substring(1);
+            int modeColor = s.isHardcore() ? 0xFFFF0000 : 0xAAAAAA;
+            renderLine(gui, "Mode: ", modeText, cx, y, modeColor, pW);
+            y += 12;
+        }
+
+        if (Config.SHOW_VERSION.get()) {
+            renderLine(gui, "Version: ", s.levelVersion().minecraftVersionName(), cx, y, 0xAAAAAA, pW);
+            y += 12;
+        }
+
+        if (Config.SHOW_CHEATS.get()) {
+            Integer redColorObj = ChatFormatting.RED.getColor();
+            int cheatsColor = (redColorObj != null && s.hasCommands()) ? redColorObj : 0xAAAAAA;
+            renderLine(gui, "Commands: ", s.hasCommands() ? "ON" : "OFF", cx, y, cheatsColor, pW);
+            y += 12;
+        }
+
+        if (Config.SHOW_LAST_PLAYED.get()) {
+            y += 3;
+            String dateStr = "(" + dateFormat.format(new Date(s.getLastPlayed())) + ")";
+            y = drawScaled(gui, dateStr, cx, y, 0x777777, pW, false, true);
+        }
+
+        y += 6;
+
+        Map<String, String> vars = WorldSelectionAPI.getVariables(s.getLevelId());
+
+        y = renderCustomLine(gui, Config.CUSTOM_LINE_1_LABEL.get(), Config.CUSTOM_LINE_1_FORMAT.get(), Config.CUSTOM_LINE_1_MODE.get(), vars.get("var1"), s, cx, y, pW);
+        y = renderCustomLine(gui, Config.CUSTOM_LINE_2_LABEL.get(), Config.CUSTOM_LINE_2_FORMAT.get(), Config.CUSTOM_LINE_2_MODE.get(), vars.get("var2"), s, cx, y, pW);
+        renderCustomLine(gui, Config.CUSTOM_LINE_3_LABEL.get(), Config.CUSTOM_LINE_3_FORMAT.get(), Config.CUSTOM_LINE_3_MODE.get(), vars.get("var3"), s, cx, y, pW);
+    }
+
+    private int renderCustomLine(GuiGraphics gui, String label, String format, Config.VarMode mode, @Nullable String rawVar, LevelSummary s, int cx, int y, int maxWidth) {
+        if (label.isEmpty() && format.isEmpty()) return y;
+
+        String interpretedVar = interpretVar(rawVar, mode);
+        String parsedValue = parsePlaceholders(format, s).replace("%var%", interpretedVar);
+
+        if (!label.isEmpty() && !label.endsWith(" ")) {
+            label += ": ";
+        }
+
+        renderLine(gui, label, parsedValue, cx, y, 0xAAAAAA, maxWidth);
+        return y + 12;
+    }
+
+    private String interpretVar(@Nullable String rawVar, Config.VarMode mode) {
+        if (mode == Config.VarMode.VALUE) {
+            return rawVar == null ? "" : rawVar;
+        }
+
+        double numericValue = 0;
+        try {
+            if (rawVar != null && !rawVar.isEmpty()) {
+                numericValue = Double.parseDouble(rawVar);
+            }
+        } catch (NumberFormatException e) {
+            numericValue = 0;
+        }
+
+        if (mode == Config.VarMode.BOOLEAN) {
+            return numericValue >= 1 ? "True" : "False";
+        } else if (mode == Config.VarMode.ON_OFF) {
+            return numericValue >= 1 ? "ON" : "OFF";
+        }
+
+        return rawVar == null ? "" : rawVar;
+    }
+
+    private String parsePlaceholders(String text, LevelSummary s) {
+        if (text.isEmpty()) return "";
+
+        String modeText = s.isHardcore() ? "Hardcore" : s.getGameMode().getName();
+
+        return text
+                .replace("%name%", s.getLevelName())
+                .replace("%id%", s.getLevelId())
+                .replace("%mode%", modeText)
+                .replace("%version%", s.levelVersion().minecraftVersionName())
+                .replace("%cheats%", s.hasCommands() ? "ON" : "OFF")
+                .replace("%hardcore%", s.isHardcore() ? "Yes" : "No");
     }
 
     private int drawScaled(GuiGraphics g, String text, int x, int y, int color, int maxWidth, boolean bold, boolean italic) {
@@ -177,11 +244,13 @@ public class ReimaginedSelectWorldScreen extends SelectWorldScreen {
         FormattedCharSequence fcs = Component.literal(text).withStyle(st).getVisualOrderText();
         float tw = this.font.width(fcs);
         float scale = tw > maxWidth ? (float) maxWidth / tw : 1.0f;
+
         g.pose().pushPose();
         g.pose().translate(x, y + (this.font.lineHeight * (1.0f - scale) / 2.0f), 0);
         g.pose().scale(scale, scale, 1.0f);
         g.drawString(this.font, fcs, (int)(-tw / 2), 0, color, true);
         g.pose().popPose();
+
         return y + (int)(this.font.lineHeight * scale) + 2;
     }
 
@@ -189,12 +258,15 @@ public class ReimaginedSelectWorldScreen extends SelectWorldScreen {
         String full = label + value;
         float tw = this.font.width(full);
         float scale = tw > maxWidth ? (float) maxWidth / tw : 1.0f;
+
         g.pose().pushPose();
         g.pose().translate(cx, y, 0);
         g.pose().scale(scale, scale, 1.0f);
+
         int startX = (int)(-tw / 2);
         g.drawString(this.font, label, startX, 0, 0x555555, false);
         g.drawString(this.font, value, startX + this.font.width(label), 0, valueColor, false);
+
         g.pose().popPose();
     }
 
@@ -243,8 +315,11 @@ public class ReimaginedSelectWorldScreen extends SelectWorldScreen {
 
     @Override
     public void onClose() {
-        iconCache.values().forEach(loc -> { if (!loc.equals(DEFAULT_ICON)) Minecraft.getInstance().getTextureManager().release(loc); });
+        iconCache.values().forEach(loc -> {
+            if (!loc.equals(DEFAULT_ICON)) Minecraft.getInstance().getTextureManager().release(loc);
+        });
         iconCache.clear();
+        WorldSelectionAPI.clearCache();
         super.onClose();
     }
 }
