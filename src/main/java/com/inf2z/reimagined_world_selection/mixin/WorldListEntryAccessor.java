@@ -9,4 +9,7 @@ import org.spongepowered.asm.mixin.gen.Accessor;
 public interface WorldListEntryAccessor {
     @Accessor("summary")
     LevelSummary getSummary();
+
+    @Accessor(value = "this$0", remap = false)
+    WorldSelectionList getList();
 }
