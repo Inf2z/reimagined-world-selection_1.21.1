@@ -150,7 +150,9 @@ public class ReimaginedSelectWorldScreen extends SelectWorldScreen {
         int y = 20;
         int pW = this.panelWidth - 20;
         int iconHeight = pW * 9 / 16;
-        gui.blit(loadIcon(s), cx - pW / 2, y, 0, 0, pW, iconHeight, pW, iconHeight);
+
+        gui.blit(loadLargeIcon(s), cx - pW / 2, y, 0, 0, pW, iconHeight, pW, iconHeight);
+
         y += iconHeight + 12;
         y = drawScaled(gui, s.getLevelName(), cx, y, 0xFFFFFF, pW, true, false);
         y += 2;
@@ -198,18 +200,44 @@ public class ReimaginedSelectWorldScreen extends SelectWorldScreen {
 
     @Nonnull
     public ResourceLocation loadIcon(LevelSummary s) {
+        return loadIconInternal(s, false);
+    }
+
+    @Nonnull
+    public ResourceLocation loadLargeIcon(LevelSummary s) {
+        return loadIconInternal(s, true);
+    }
+
+    @Nonnull
+    private ResourceLocation loadIconInternal(LevelSummary s, boolean useLargeIcon) {
         String id = s.getLevelId();
-        if (iconCache.containsKey(id)) return iconCache.get(id);
-        Path p = Minecraft.getInstance().getLevelSource().getBaseDir().resolve(id).resolve("icon.png");
-        if (Files.exists(p)) {
-            try (InputStream is = Files.newInputStream(p)) {
-                DynamicTexture dt = new DynamicTexture(NativeImage.read(is));
-                ResourceLocation rl = ResourceLocation.fromNamespaceAndPath("reimagined", "icon_" + id.toLowerCase().replaceAll("[^a-z0-9_]", "_"));
-                Minecraft.getInstance().getTextureManager().register(rl, dt);
-                iconCache.put(id, rl);
-                return rl;
-            } catch (Exception ignored) {}
+        String cacheKey = (useLargeIcon ? "large_" : "") + id;
+
+        if (iconCache.containsKey(cacheKey)) {
+            return iconCache.get(cacheKey);
         }
+
+        Path worldDir = Minecraft.getInstance().getLevelSource().getBaseDir().resolve(id);
+        Path targetPath = useLargeIcon ? worldDir.resolve("large_icon.png") : worldDir.resolve("icon.png");
+
+        if (useLargeIcon && !Files.exists(targetPath)) {
+            targetPath = worldDir.resolve("icon.png");
+        }
+
+        if (Files.exists(targetPath)) {
+            try (InputStream is = Files.newInputStream(targetPath)) {
+                DynamicTexture dt = new DynamicTexture(NativeImage.read(is));
+                String prefix = useLargeIcon ? "large_icon_" : "icon_";
+                ResourceLocation rl = ResourceLocation.fromNamespaceAndPath("reimagined",
+                        prefix + id.toLowerCase().replaceAll("[^a-z0-9_]", "_"));
+                Minecraft.getInstance().getTextureManager().register(rl, dt);
+                iconCache.put(cacheKey, rl);
+                return rl;
+            } catch (Exception e) {
+                LOGGER.warn("Failed to load icon for world: {}", id, e);
+            }
+        }
+
         return DEFAULT_ICON;
     }
 

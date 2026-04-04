@@ -11,7 +11,9 @@
     "EntryAccessor",
     "ScreenAccessor",
     "SelectWorldAccessor",
-    "WorldListEntryAccessor"
+    "WorldListEntryAccessor",
+    "WorldListEntryAccessor",
+    "WorldExitMixin"
   ],
   "injectors": {
     "defaultRequire": 1
