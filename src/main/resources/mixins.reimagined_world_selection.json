@@ -4,10 +4,16 @@
   "package": "com.inf2z.reimagined_world_selection.mixin",
   "compatibilityLevel": "JAVA_21",
   "client": [
-    "SelectWorldAccessor",
-    "EntryAccessor",
     "SelectWorldMixin",
-    "ScreenAccessor"
+    "WorldListEntryMixin",
+    "WorldSelectionListMixin",
+    "AbstractWidgetAccessor",
+    "EntryAccessor",
+    "ScreenAccessor",
+    "SelectWorldAccessor",
+    "WorldListEntryAccessor"
   ],
-  "injectors": { "defaultRequire": 1 }
+  "injectors": {
+    "defaultRequire": 1
+  }
 }

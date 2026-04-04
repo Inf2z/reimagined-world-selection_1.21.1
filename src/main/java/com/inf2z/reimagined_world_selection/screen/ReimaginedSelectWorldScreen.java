@@ -10,7 +10,6 @@ import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.components.Renderable;
 import net.minecraft.client.gui.screens.Screen;
-import net.minecraft.client.gui.screens.TitleScreen;
 import net.minecraft.client.gui.screens.worldselection.SelectWorldScreen;
 import net.minecraft.client.gui.screens.worldselection.WorldSelectionList;
 import net.minecraft.client.renderer.texture.DynamicTexture;
@@ -30,13 +29,12 @@ import java.util.*;
 
 public class ReimaginedSelectWorldScreen extends SelectWorldScreen {
     private int panelWidth;
-    private EditBox vanillaSearchBox;
-    private static final ResourceLocation DEFAULT_ICON = ResourceLocation.withDefaultNamespace("textures/misc/unknown_server.png");
     private final Map<String, ResourceLocation> iconCache = new HashMap<>();
     private final SimpleDateFormat dateFormat = new SimpleDateFormat("dd.MM.yyyy HH:mm");
+    private static final ResourceLocation DEFAULT_ICON = ResourceLocation.withDefaultNamespace("textures/misc/unknown_server.png");
 
     public ReimaginedSelectWorldScreen(@Nullable Screen lastScreen) {
-        super(lastScreen == null ? new TitleScreen() : lastScreen);
+        super(lastScreen);
     }
 
     @Override
@@ -44,178 +42,114 @@ public class ReimaginedSelectWorldScreen extends SelectWorldScreen {
         super.init();
         this.panelWidth = (int) (this.width * Config.PANEL_WIDTH_RATIO.get());
 
-        for (Renderable r : this.renderables) {
-            if (r instanceof EditBox editBox) {
-                this.vanillaSearchBox = editBox;
-                break;
-            }
+        SelectWorldAccessor acc = (SelectWorldAccessor) this;
+        int rx = this.panelWidth;
+        int rw = this.width - this.panelWidth;
+
+        EditBox search = acc.getSearchBox();
+        if (search != null) {
+            search.setWidth(160);
+            search.setX(rx + (rw - 160) / 2);
+            search.setY(22);
         }
-        applyReimaginedLayout();
-    }
 
-    @Override
-    public void repositionElements() {
-        super.repositionElements();
-        this.panelWidth = (int) (this.width * Config.PANEL_WIDTH_RATIO.get());
-        applyReimaginedLayout();
-    }
-
-    private void applyReimaginedLayout() {
-        int rightAreaStart = this.panelWidth;
-        int rightAreaWidth = this.width - this.panelWidth;
-        int rightCenterX = rightAreaStart + (rightAreaWidth / 2);
-
-        // Исправляем список
-        WorldSelectionList list = ((SelectWorldAccessor) this).getList();
+        WorldSelectionList list = acc.getList();
         if (list != null) {
-            int padding = 16;
-            list.setWidth(rightAreaWidth - (padding * 2));
-            list.setX(rightAreaStart + padding);
+            list.setRectangle(rw - 40, this.height - 110, rx + 20, 48);
         }
 
-        if (this.vanillaSearchBox != null) {
-            this.vanillaSearchBox.setWidth(Math.min(160, rightAreaWidth - 40));
-            this.vanillaSearchBox.setX(rightCenterX - this.vanillaSearchBox.getWidth() / 2);
-        }
+        repositionButtons(rx, rw);
+    }
 
-        // Исправляем кнопки (строгая логика)
-        List<AbstractWidget> buttons = new ArrayList<>();
+    private void repositionButtons(int rx, int rw) {
+        List<AbstractWidget> top = new ArrayList<>();
+        List<AbstractWidget> bottom = new ArrayList<>();
         for (Renderable r : this.renderables) {
-            if (r instanceof AbstractWidget w && w != this.vanillaSearchBox && !(w instanceof WorldSelectionList)) {
-                if (w.getY() > this.height - 64) {
-                    buttons.add(w);
-                }
+            if (r instanceof AbstractWidget w && !(w instanceof EditBox)) {
+                if (w.getY() < 48) top.add(w);
+                else if (w.getY() > this.height - 55) bottom.add(w);
             }
         }
+        alignButtons(top, rx, rw);
+        alignButtons(bottom, rx, rw);
+    }
 
-        if (!buttons.isEmpty()) {
-            buttons.sort(Comparator.comparingInt(AbstractWidget::getX));
+    private void alignButtons(List<AbstractWidget> buttons, int rx, int rw) {
+        if (buttons.isEmpty()) return;
+        buttons.sort(Comparator.comparingInt(AbstractWidget::getX));
+        int totalWidth = 0;
+        for (AbstractWidget b : buttons) totalWidth += b.getWidth() + 4;
 
-            int spacing = 4;
-            int availableSpace = rightAreaWidth - 10;
-
-            // Считаем текущую суммарную ширину
-            int totalWidth = 0;
-            for (AbstractWidget b : buttons) {
-                // Возвращаем ванильные пропорции (Play: 150, Edit/Delete: 74)
-                int targetW = (b.getMessage().getString().length() > 10) ? 150 : 74;
-                b.setWidth(targetW);
-                totalWidth += targetW + spacing;
-            }
-            totalWidth -= spacing;
-
-            // Если не влезает, принудительно сжимаем ВСЕ большие кнопки до 100
-            if (totalWidth > availableSpace) {
-                totalWidth = 0;
-                for (AbstractWidget b : buttons) {
-                    if (b.getWidth() > 100) b.setWidth(100);
-                    totalWidth += b.getWidth() + spacing;
-                }
-                totalWidth -= spacing;
-            }
-
-            // Если всё равно не влезает, сжимаем пропорционально до минимума
-            if (totalWidth > availableSpace) {
-                float shrinkFactor = (float) availableSpace / totalWidth;
-                totalWidth = 0;
-                for (AbstractWidget b : buttons) {
-                    b.setWidth((int) (b.getWidth() * shrinkFactor));
-                    totalWidth += b.getWidth() + spacing;
-                }
-                totalWidth -= spacing;
-            }
-
-            // Центрируем и расставляем БЕЗ наслоения
-            int currentX = rightCenterX - (totalWidth / 2);
-            if (currentX < rightAreaStart + 5) currentX = rightAreaStart + 5;
-
-            for (AbstractWidget b : buttons) {
-                b.setX(currentX);
-                currentX += b.getWidth() + spacing;
-            }
+        int currentX = rx + (rw - (totalWidth - 4)) / 2;
+        for (AbstractWidget b : buttons) {
+            b.setX(currentX);
+            currentX += b.getWidth() + 4;
         }
     }
 
     @Override
-    public void render(@Nonnull GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
-        applyReimaginedLayout();
-        this.renderBackground(guiGraphics, mouseX, mouseY, partialTick);
-        super.render(guiGraphics, mouseX, mouseY, partialTick);
+    public void render(@Nonnull GuiGraphics gui, int mouseX, int mouseY, float tick) {
+        this.renderBackground(gui, mouseX, mouseY, tick);
 
-        // Отрисовка инфопанели (поверх списка)
-        int alpha = Config.PANEL_OPACITY.get() & 0xFF;
-        int bgColor = (Config.PANEL_BACKGROUND_STYLE.get() == Config.BackgroundStyle.GRAY) ? 0x1A1A1A : 0x000000;
-        guiGraphics.fill(0, 0, this.panelWidth, this.height, (alpha << 24) | bgColor);
-        guiGraphics.fill(this.panelWidth - 1, 0, this.panelWidth, this.height, 0xFF555555);
+        SelectWorldAccessor acc = (SelectWorldAccessor) this;
+        // Рендерим список отдельно, если он есть
+        if (acc.getList() != null) acc.getList().render(gui, mouseX, mouseY, tick);
 
-        renderSidebarContent(guiGraphics);
+        for (Renderable r : this.renderables) {
+            if (!(r instanceof WorldSelectionList)) r.render(gui, mouseX, mouseY, tick);
+        }
+        renderCustomUI(gui);
     }
 
-    private void renderSidebarContent(GuiGraphics guiGraphics) {
+    private void renderCustomUI(GuiGraphics gui) {
+        int color = (Config.PANEL_BACKGROUND_STYLE.get() == Config.BackgroundStyle.GRAY) ? 0x1A1A1A : 0x000000;
+        gui.fill(0, 0, this.panelWidth, this.height, (0xFF << 24) | color);
+        gui.fill(this.panelWidth - 1, 0, this.panelWidth, this.height, 0xFF555555);
+
+        gui.drawCenteredString(this.font, this.title, this.panelWidth + (this.width - this.panelWidth) / 2, 8, 0xFFFFFF);
+
+        renderSidebarInfo(gui);
+    }
+
+    private void renderSidebarInfo(GuiGraphics gui) {
         WorldSelectionList list = ((SelectWorldAccessor) this).getList();
-        if (list == null || !(list.getSelected() instanceof WorldSelectionList.WorldListEntry worldEntry)) return;
+        if (list == null || !(list.getSelected() instanceof WorldSelectionList.WorldListEntry entry)) return;
 
-        LevelSummary summary = ((EntryAccessor) (Object) worldEntry).getSummary();
-        int centerX = this.panelWidth / 2;
-        int maxWidth = this.panelWidth - 20;
+        LevelSummary s = ((EntryAccessor) (Object) entry).getSummary();
+        int cx = this.panelWidth / 2;
         int y = 40;
+        int pW = this.panelWidth - 20;
 
-        // Иконка мира
-        guiGraphics.blit(loadWorldIcon(summary), centerX - 46, y, 0, 0, 92, 92, 92, 92);
-        y += 105;
+        int iconHeight = pW * 9 / 16;
+        gui.blit(loadIcon(s), cx - pW / 2, y, 0, 0, pW, iconHeight, pW, iconHeight);
 
-        // Название мира (Жирный)
-        renderWrappedText(guiGraphics, summary.getLevelName(), centerX, y, maxWidth, 0xFFFFFF, true);
+        y += iconHeight + 15;
+        y = drawWrapped(gui, s.getLevelName(), cx, y, 0xFFFFFF, true);
+        y += 5;
+        y = drawWrapped(gui, "(" + s.getLevelId() + ")", cx, y, 0x555555, false);
         y += 15;
 
-        // Название папки (Сразу под названием мира)
-        if (Config.SHOW_FOLDER_NAME.get()) {
-            renderWrappedText(guiGraphics, summary.getLevelId(), centerX, y, maxWidth, 0x666666, false);
-            y += 20;
-        }
-
-        y += 10;
-
-        // Режим игры (Mode: Survival)
-        String rawMode = summary.getGameMode().getName();
-        String capMode = rawMode.substring(0, 1).toUpperCase() + rawMode.substring(1);
-        int modeColor = summary.isHardcore() ? 0xFF0000 : 0xFFFFFF;
-        String modeText = summary.isHardcore() ? "Hardcore" : capMode;
-
-        Component modeLine = Component.translatable("gui.reimagined.mode").append(": ")
-                .append(Component.literal(modeText).withStyle(s -> s.withColor(modeColor)));
-
-        guiGraphics.drawCenteredString(this.font, modeLine, centerX, y, 0xAAAAAA);
+        renderLine(gui, "Mode: ", s.getGameMode().getName(), cx, y);
+        y += 12;
+        renderLine(gui, "Version: ", s.levelVersion().minecraftVersionName(), cx, y);
         y += 15;
 
-        // Версия и дата
-        guiGraphics.drawCenteredString(this.font, summary.levelVersion().minecraftVersionName(), centerX, y, 0x888888);
-        y += 15;
-        String dateStr = dateFormat.format(new Date(summary.getLastPlayed()));
-        guiGraphics.drawCenteredString(this.font, dateStr, centerX, y, 0x555555);
+        drawWrapped(gui, "(" + dateFormat.format(new Date(s.getLastPlayed())) + ")", cx, y, 0x555555, false);
     }
 
-    private void renderWrappedText(GuiGraphics graphics, String text, int x, int y, int maxWidth, int color, boolean bold) {
-        Style style = bold ? Style.EMPTY.withBold(true) : Style.EMPTY;
-        List<FormattedCharSequence> lines = this.font.split(Component.literal(text).withStyle(style), maxWidth);
-        int currentY = y;
-        for (FormattedCharSequence line : lines) {
-            graphics.drawCenteredString(this.font, line, x, currentY, color);
-            currentY += 10;
-        }
-    }
-
-    private ResourceLocation loadWorldIcon(LevelSummary summary) {
-        String id = summary.getLevelId();
+    public ResourceLocation loadIcon(LevelSummary s) {
+        String id = s.getLevelId();
         if (iconCache.containsKey(id)) return iconCache.get(id);
 
-        Path path = Minecraft.getInstance().getLevelSource().getBaseDir().resolve(id).resolve("icon.png");
-        if (Files.exists(path)) {
-            try (InputStream is = Files.newInputStream(path)) {
+        Path p = Minecraft.getInstance().getLevelSource().getBaseDir().resolve(id).resolve("icon.png");
+        if (Files.exists(p)) {
+            try (InputStream is = Files.newInputStream(p)) {
                 NativeImage ni = NativeImage.read(is);
                 DynamicTexture dt = new DynamicTexture(ni);
+
                 String safeId = id.toLowerCase().replaceAll("[^a-z0-9_]", "_");
                 ResourceLocation rl = ResourceLocation.fromNamespaceAndPath("reimagined", "icon_" + safeId);
+
                 Minecraft.getInstance().getTextureManager().register(rl, dt);
                 iconCache.put(id, rl);
                 return rl;
@@ -224,12 +158,19 @@ public class ReimaginedSelectWorldScreen extends SelectWorldScreen {
         return DEFAULT_ICON;
     }
 
-    @Override
-    public void onClose() {
-        iconCache.values().forEach(loc -> {
-            if (!loc.equals(DEFAULT_ICON)) Minecraft.getInstance().getTextureManager().release(loc);
-        });
-        iconCache.clear();
-        super.onClose();
+    private int drawWrapped(GuiGraphics g, String text, int x, int y, int color, boolean bold) {
+        Style st = Style.EMPTY.withBold(bold).withItalic(!bold && text.startsWith("("));
+        List<FormattedCharSequence> lines = this.font.split(Component.literal(text).withStyle(st), this.panelWidth - 20);
+        for (FormattedCharSequence l : lines) {
+            g.drawCenteredString(this.font, l, x, y, color);
+            y += 10;
+        }
+        return y;
+    }
+
+    private void renderLine(GuiGraphics g, String label, String value, int cx, int y) {
+        int tw = this.font.width(label) + this.font.width(value);
+        g.drawString(this.font, label, cx - tw / 2, y, 0x555555, false);
+        g.drawString(this.font, value, cx - tw / 2 + this.font.width(label), y, 0xAAAAAA, false);
     }
 }
