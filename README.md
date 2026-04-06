@@ -1,25 +1,45 @@
+## Reimagined World Selection
+A brand new look for the World Selection Screen!
 
-Installation information
-=======
+### Features:
+- Highly Configurable
+- Integration with KubeJS
+- Built-in Dynamic Updating Icons
+- Custom Lines With Your Custom Info
+  
+### Information:
 
-This template repository can be directly cloned to get you started with a new
-mod. Simply create a new repository cloned from this one, by following the
-instructions provided by [GitHub](https://docs.github.com/en/repositories/creating-and-managing-repositories/creating-a-repository-from-a-template).
+_How to start working with custom info?_
 
-Once you have your clone, simply open the repository in the IDE of your choice. The usual recommendation for an IDE is either IntelliJ IDEA or Eclipse.
+You can easily do it with KubeJS! Start your client-side script with:
 
-If at any point you are missing libraries in your IDE, or you've run into problems you can
-run `gradlew --refresh-dependencies` to refresh the local cache. `gradlew clean` to reset everything 
-{this does not affect your code} and then start the process again.
+`const RWS = Java.loadClass('com.inf2z.reimagined_world_selection.api.WorldSelectionAPI')`
 
-Mapping Names:
-============
-By default, the MDK is configured to use the official mapping names from Mojang for methods and fields 
-in the Minecraft codebase. These names are covered by a specific license. All modders should be aware of this
-license. For the latest license text, refer to the mapping file itself, or the reference copy here:
-https://github.com/NeoForged/NeoForm/blob/main/Mojang.md
+And then you have many ways to manipulate those 3 custom lines!
+First of all, every line has a variable. Those variables have 3 modes (configurable in-game).
 
-Additional Resources: 
-==========
-Community Documentation: https://docs.neoforged.net/  
-NeoForged Discord: https://discord.neoforged.net/
+### Modes:
+- Boolean (If the value is <= 0, it displays as False. If the value is >= 1, it displays as True.)
+- ON/OFF (Similar to Boolean, but displays OFF and ON instead.)
+- Value (Just displays the raw value or text.)
+  
+With KubeJS, you have many ways to manipulate these values.
+
+### Methods:
+- RWS.updateVar(lineNumber, value) — Updates the specified line (1, 2, or 3) with a new string value.
+- RWS.saveCurrent(var1, var2, var3) — Mass updates all 3 lines at once.
+- RWS.addValue(lineNumber, amount) — Adds a numeric amount to the current variable. Automatically removes trailing zeros (e.g., 5.0 becomes 5). If the current variable is text, it counts it as 0.
+- RWS.resetVar(lineNumber) — Resets the specified line's value back to "0".
+- RWS.getString(lineNumber) — Gets the current value of the line as text.
+- RWS.getNumber(lineNumber) — Gets the current value of the line as a number (returns 0 if the value is text).
+- RWS.freeze(lineNumber) — Freezes the variable. It will ignore any further updates or additions until unfrozen.
+- RWS.unfreeze(lineNumber) — Unfreezes the variable, allowing it to be changed again.
+
+### Config Examples:
+- Custom Line (1-3) Label: Killed / Golden Leggings is / Cool Guy
+- Custom Line (1-3) Format: %var% Zombies / %var% / %var%
+- Custom Line (1-3) Mode: VALUE / ON_OFF / BOOLEAN
+  
+##### Note: Variable data is saved securely inside each specific world's folder (reimagined_vars.json), meaning your stats are always tied to the correct save!
+##### P.S: This mod was by 99.9% AI-coded :P (at least not made in MCreator)
+##### P.P.S: I was heavily inspired by [Reimagined World Menu](https://modrinth.com/mod/reimagined-world-menu), so also check out this mod!! :D
