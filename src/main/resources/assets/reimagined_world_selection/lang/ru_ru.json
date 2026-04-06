@@ -1,28 +1,76 @@
 {
   "config.reimagined_world_selection.category.panel_settings": "Настройки панели",
   "config.reimagined_world_selection.category.visible_information": "Отображаемая информация",
-  "config.reimagined_world_selection.category.custom_information_lines": "Свои строки информации",
+  "config.reimagined_world_selection.category.custom_information_lines": "Собственная информация",
 
-  "config.reimagined_world_selection.panel_width_ratio": "Ширина боковой панели",
+  "config.reimagined_world_selection.panel_width_ratio": "Ширина",
   "config.reimagined_world_selection.panel_background_style": "Стиль фона",
   "config.reimagined_world_selection.panel_alpha": "Прозрачность фона",
 
   "config.reimagined_world_selection.show_world_name": "Показывать название мира",
   "config.reimagined_world_selection.show_folder_name": "Показывать название папки",
+  "config.reimagined_world_selection.show_difficulty": "Показывать сложность",
   "config.reimagined_world_selection.show_game_mode": "Показывать режим игры",
   "config.reimagined_world_selection.show_version": "Показывать версию",
-  "config.reimagined_world_selection.show_cheats": "Показывать читы (Команды)",
+  "config.reimagined_world_selection.show_cheats": "Показывать статус команд",
   "config.reimagined_world_selection.show_last_played": "Показывать дату последней игры",
+  "config.reimagined_world_selection.show_time_played": "Показывать время в мире",
+  "config.reimagined_world_selection.time_played_format": "Формат времени в мире",
+  "config.reimagined_world_selection.show_large_icon": "Показывать большой значок",
 
-  "config.reimagined_world_selection.custom_line_1_label": "Своя строка 1: Название",
-  "config.reimagined_world_selection.custom_line_1_format": "Своя строка 1: Формат",
-  "config.reimagined_world_selection.custom_line_1_mode": "Своя строка 1: Режим переменной",
+  "reimagined_world_selection.label.mode": "Режим: ",
+  "reimagined_world_selection.label.difficulty": "Сложность: ",
+  "reimagined_world_selection.label.time_played": "Проведенное время: ",
+  "reimagined_world_selection.label.version": "Версия: ",
+  "reimagined_world_selection.label.commands": "Команды: ",
 
-  "config.reimagined_world_selection.custom_line_2_label": "Своя строка 2: Название",
-  "config.reimagined_world_selection.custom_line_2_format": "Своя строка 2: Формат",
-  "config.reimagined_world_selection.custom_line_2_mode": "Своя строка 2: Режим переменной",
+  "reimagined_world_selection.value.hardcore": "Хардкор!",
+  "reimagined_world_selection.value.peaceful": "Мирная",
+  "reimagined_world_selection.value.easy": "Лёгкая",
+  "reimagined_world_selection.value.normal": "Нормальная",
+  "reimagined_world_selection.value.hard": "Тяжёлая",
+  "reimagined_world_selection.value.unknown": "Неизвестно",
+  "reimagined_world_selection.value.locked": "[Заблокировано]",
 
-  "config.reimagined_world_selection.custom_line_3_label": "Своя строка 3: Название",
-  "config.reimagined_world_selection.custom_line_3_format": "Своя строка 3: Формат",
-  "config.reimagined_world_selection.custom_line_3_mode": "Своя строка 3: Режим переменной"
+  "reimagined_world_selection.time.minutes": "мин",
+  "reimagined_world_selection.time.hours": "ч",
+  "reimagined_world_selection.time.days": "д",
+  "reimagined_world_selection.time.weeks": "н",
+  "reimagined_world_selection.time.months": "мес",
+  "reimagined_world_selection.time.years": "г",
+
+  "config.reimagined_world_selection.custom_line_1_label": "Строка 1: Название",
+  "config.reimagined_world_selection.custom_line_1_format": "Строка 1: Формат",
+  "config.reimagined_world_selection.custom_line_1_mode": "Строка 1: Режим переменной",
+
+  "config.reimagined_world_selection.custom_line_2_label": "Строка 2: Название",
+  "config.reimagined_world_selection.custom_line_2_format": "Строка 2: Формат",
+  "config.reimagined_world_selection.custom_line_2_mode": "Строка 2: Режим переменной",
+
+  "config.reimagined_world_selection.custom_line_3_label": "Строка 3: Название",
+  "config.reimagined_world_selection.custom_line_3_format": "Строка 3: Формат",
+  "config.reimagined_world_selection.custom_line_3_mode": "Строка 3: Режим переменной",
+
+  "config.reimagined_world_selection.custom_line_1_source": "Строка 1: Источник",
+  "config.reimagined_world_selection.custom_line_2_source": "Строка 2: Источник",
+  "config.reimagined_world_selection.custom_line_3_source": "Строка 3: Источник",
+  "config.reimagined_world_selection.custom_line_4_source": "Строка 4: Источник",
+  "config.reimagined_world_selection.custom_line_5_source": "Строка 5: Источник",
+  "config.reimagined_world_selection.custom_line_6_source": "Строка 6: Источник",
+
+  "config.reimagined_world_selection.custom_line_4_label": "Строка 4: Название",
+  "config.reimagined_world_selection.custom_line_4_format": "Строка 4: Формат",
+  "config.reimagined_world_selection.custom_line_4_mode": "Строка 4: Режим переменной",
+
+  "config.reimagined_world_selection.custom_line_5_label": "Строка 5: Название",
+  "config.reimagined_world_selection.custom_line_5_format": "Строка 5: Формат",
+  "config.reimagined_world_selection.custom_line_5_mode": "Строка 5: Режим переменной",
+
+  "config.reimagined_world_selection.custom_line_6_label": "Строка 6: Название",
+  "config.reimagined_world_selection.custom_line_6_format": "Строка 6: Формат",
+  "config.reimagined_world_selection.custom_line_6_mode": "Строка 6: Режим переменной",
+
+  "config.reimagined_world_selection.category.element_animations": "Анимации элементов",
+  "config.reimagined_world_selection.enable_world_hover_animation": "Анимация выделения мира",
+  "config.reimagined_world_selection.enable_text_hover_animation": "Анимация наведения на текст в панели"
 }

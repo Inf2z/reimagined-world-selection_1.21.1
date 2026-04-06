@@ -3,26 +3,74 @@
   "config.reimagined_world_selection.category.visible_information": "Visible Information",
   "config.reimagined_world_selection.category.custom_information_lines": "Custom Information Lines",
 
-  "config.reimagined_world_selection.panel_width_ratio": "Panel Width Ratio",
+  "config.reimagined_world_selection.panel_width_ratio": "Width Ratio",
   "config.reimagined_world_selection.panel_background_style": "Background Style",
   "config.reimagined_world_selection.panel_alpha": "Background Transparency",
 
   "config.reimagined_world_selection.show_world_name": "Show World Name",
   "config.reimagined_world_selection.show_folder_name": "Show Folder Name",
+  "config.reimagined_world_selection.show_difficulty": "Show Difficulty",
   "config.reimagined_world_selection.show_game_mode": "Show Game Mode",
   "config.reimagined_world_selection.show_version": "Show Version",
-  "config.reimagined_world_selection.show_cheats": "Show Commands (Cheats)",
+  "config.reimagined_world_selection.show_cheats": "Show Commands Status",
   "config.reimagined_world_selection.show_last_played": "Show Last Played Date",
+  "config.reimagined_world_selection.show_time_played": "Show Time Played",
+  "config.reimagined_world_selection.time_played_format": "Time Played Format",
+  "config.reimagined_world_selection.show_large_icon": "Show Large Icon",
 
-  "config.reimagined_world_selection.custom_line_1_label": "Custom Line 1: Label",
-  "config.reimagined_world_selection.custom_line_1_format": "Custom Line 1: Format",
-  "config.reimagined_world_selection.custom_line_1_mode": "Custom Line 1: Variable Mode",
+  "reimagined_world_selection.label.mode": "Mode: ",
+  "reimagined_world_selection.label.difficulty": "Difficulty: ",
+  "reimagined_world_selection.label.time_played": "Time Played: ",
+  "reimagined_world_selection.label.version": "Version: ",
+  "reimagined_world_selection.label.commands": "Commands: ",
 
-  "config.reimagined_world_selection.custom_line_2_label": "Custom Line 2: Label",
-  "config.reimagined_world_selection.custom_line_2_format": "Custom Line 2: Format",
-  "config.reimagined_world_selection.custom_line_2_mode": "Custom Line 2: Variable Mode",
+  "reimagined_world_selection.value.hardcore": "Hardcore!",
+  "reimagined_world_selection.value.peaceful": "Peaceful",
+  "reimagined_world_selection.value.easy": "Easy",
+  "reimagined_world_selection.value.normal": "Normal",
+  "reimagined_world_selection.value.hard": "Hard",
+  "reimagined_world_selection.value.unknown": "Unknown",
+  "reimagined_world_selection.value.locked": "[Locked]",
 
-  "config.reimagined_world_selection.custom_line_3_label": "Custom Line 3: Label",
-  "config.reimagined_world_selection.custom_line_3_format": "Custom Line 3: Format",
-  "config.reimagined_world_selection.custom_line_3_mode": "Custom Line 3: Variable Mode"
+  "reimagined_world_selection.time.minutes": "m",
+  "reimagined_world_selection.time.hours": "h",
+  "reimagined_world_selection.time.days": "d",
+  "reimagined_world_selection.time.weeks": "w",
+  "reimagined_world_selection.time.months": "mo",
+  "reimagined_world_selection.time.years": "y",
+
+  "config.reimagined_world_selection.custom_line_1_label": "Line 1: Label",
+  "config.reimagined_world_selection.custom_line_1_format": "Line 1: Format",
+  "config.reimagined_world_selection.custom_line_1_mode": "Line 1: Variable Mode",
+
+  "config.reimagined_world_selection.custom_line_2_label": "Line 2: Label",
+  "config.reimagined_world_selection.custom_line_2_format": "Line 2: Format",
+  "config.reimagined_world_selection.custom_line_2_mode": "Line 2: Variable Mode",
+
+  "config.reimagined_world_selection.custom_line_3_label": "Line 3: Label",
+  "config.reimagined_world_selection.custom_line_3_format": "Line 3: Format",
+  "config.reimagined_world_selection.custom_line_3_mode": "Line 3: Variable Mode",
+
+  "config.reimagined_world_selection.custom_line_1_source": "Line 1: Source",
+  "config.reimagined_world_selection.custom_line_2_source": "Line 2: Source",
+  "config.reimagined_world_selection.custom_line_3_source": "Line 3: Source",
+  "config.reimagined_world_selection.custom_line_4_source": "Line 4: Source",
+  "config.reimagined_world_selection.custom_line_5_source": "Line 5: Source",
+  "config.reimagined_world_selection.custom_line_6_source": "Line 6: Source",
+
+  "config.reimagined_world_selection.custom_line_4_label": "Line 4: Label",
+  "config.reimagined_world_selection.custom_line_4_format": "Line 4: Format",
+  "config.reimagined_world_selection.custom_line_4_mode": "Line 4: Variable Mode",
+
+  "config.reimagined_world_selection.custom_line_5_label": "Line 5: Label",
+  "config.reimagined_world_selection.custom_line_5_format": "Line 5: Format",
+  "config.reimagined_world_selection.custom_line_5_mode": "Line 5: Variable Mode",
+
+  "config.reimagined_world_selection.custom_line_6_label": "Line 6: Label",
+  "config.reimagined_world_selection.custom_line_6_format": "Line 6: Format",
+  "config.reimagined_world_selection.custom_line_6_mode": "Line 6: Variable Mode",
+
+  "config.reimagined_world_selection.category.element_animations": "Element Animations",
+  "config.reimagined_world_selection.enable_world_hover_animation": "World Selection Animation",
+  "config.reimagined_world_selection.enable_text_hover_animation": "Panel Text Hover Animation"
 }
