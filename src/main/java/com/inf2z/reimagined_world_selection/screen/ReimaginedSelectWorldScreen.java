@@ -486,8 +486,6 @@ public class ReimaginedSelectWorldScreen extends SelectWorldScreen {
         };
     }
 
-    // ... (остальные методы без изменений - renderCustomAnimatedLine, interpretVar, parsePlaceholders, formatPlayTime, drawScaled, renderAnimatedLine, loadIcon, loadLargeIcon, loadIconInternal, getDifficultyRenderData)
-
     private int renderCustomAnimatedLine(GuiGraphics gui, Config.CustomLineConfig line,
                                          Map<String, String> worldVars, Map<String, String> playerVars,
                                          LevelSummary s, int cx, int y, int maxWidth, int mouseX, int mouseY) {
@@ -739,3 +737,4 @@ public class ReimaginedSelectWorldScreen extends SelectWorldScreen {
 
     private record DifficultyRenderData(String text, int color) {}
 }
+

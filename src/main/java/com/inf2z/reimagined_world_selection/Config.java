@@ -38,41 +38,33 @@ public class Config {
     static {
         ModConfigSpec.Builder builder = new ModConfigSpec.Builder();
 
-        builder.comment("Panel Settings");
         builder.push("panel_settings");
 
         PANEL_WIDTH_RATIO = builder
-                .comment("Width ratio of the side panel (0.2 - 0.6)")
                 .defineInRange("panel_width_ratio", 0.4, 0.2, 0.6);
 
         PANEL_BACKGROUND_STYLE = builder
-                .comment("Background style: GRAY or BLACK")
                 .defineEnum("panel_background_style", BackgroundStyle.BLACK);
 
         PANEL_ALPHA = builder
-                .comment("Background transparency (0-255)")
                 .defineInRange("panel_alpha", 102, 0, 255);
 
         PANEL_BEHAVIOUR = builder
-                .comment("Panel behavior: DYNAMIC (with toggle button) or STATIC (always visible)")
+                .comment("DYNAMIC (with toggle button), STATIC (always visible)")
                 .defineEnum("panel_behaviour", PanelBehaviour.DYNAMIC);
 
         builder.pop();
 
-        builder.comment("Element Animations");
         builder.push("element_animations");
 
         ENABLE_WORLD_HOVER_ANIMATION = builder
-                .comment("Enable world selection hover animation")
                 .define("enable_world_hover_animation", true);
 
         ENABLE_TEXT_HOVER_ANIMATION = builder
-                .comment("Enable panel text hover animation")
                 .define("enable_text_hover_animation", true);
 
         builder.pop();
 
-        builder.comment("Visible Information");
         builder.push("visible_information");
 
         SHOW_WORLD_NAME = builder.define("show_world_name", true);
@@ -88,15 +80,15 @@ public class Config {
 
         builder.pop();
 
-        builder.comment("Internal Settings (managed by in-game editors)");
+        builder.comment("Internal Editors Are Managed By Regular Editors, Use Them Instead");
         builder.push("internal");
 
         CUSTOM_LINES = builder
-                .comment("Custom lines data - use in-game Custom Lines Editor")
+                .comment("PLEASE DO NOT USE INTERNAL EDITORS!")
                 .defineList("custom_lines", new ArrayList<>(), obj -> obj instanceof String);
 
         PANEL_ORDER = builder
-                .comment("Panel element order - use in-game Panel Order Editor")
+                .comment("PLEASE DO NOT USE INTERNAL EDITORS!")
                 .defineList("panel_order", new ArrayList<>(), obj -> obj instanceof String);
 
         builder.pop();

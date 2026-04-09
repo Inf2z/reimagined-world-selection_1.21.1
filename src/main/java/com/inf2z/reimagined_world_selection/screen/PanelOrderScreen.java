@@ -70,6 +70,7 @@ public class PanelOrderScreen extends Screen {
     @Override
     public void render(@Nonnull GuiGraphics gui, int mouseX, int mouseY, float partialTick) {
         super.render(gui, mouseX, mouseY, partialTick);
+
         gui.drawCenteredString(this.font, this.title, this.width / 2, 8, 0xFFFFFF);
         gui.drawCenteredString(this.font, Component.literal("Drag elements to reorder"),
                 this.width / 2, 22, 0x808080);
@@ -84,13 +85,16 @@ public class PanelOrderScreen extends Screen {
 
     private class PanelElementsList extends ObjectSelectionList<PanelElementEntry> {
         private PanelElementEntry dragging;
+        private long dragStartTime;
+        private final int bottomLimit;
 
         public PanelElementsList(Minecraft minecraft) {
             super(minecraft,
                     PanelOrderScreen.this.width,
-                    PanelOrderScreen.this.height - 62,
-                    35,
+                    PanelOrderScreen.this.height - 61,
+                    32,
                     28);
+            this.bottomLimit = PanelOrderScreen.this.height - 35;
             reload();
         }
 
@@ -141,12 +145,29 @@ public class PanelOrderScreen extends Screen {
             return this.width / 2 + 160;
         }
 
+        public boolean isDragging(PanelElementEntry entry) {
+            return dragging == entry;
+        }
+
+        public long getDragStartTime() {
+            return dragStartTime;
+        }
+
+        @Override
+        public boolean isMouseOver(double mouseX, double mouseY) {
+            return mouseY >= this.getY() && mouseY < this.getBottom() && mouseX >= 0 && mouseX < this.width;
+        }
+
         @Override
         public boolean mouseClicked(double mouseX, double mouseY, int button) {
+            if (mouseY >= bottomLimit) {
+                return false;
+            }
             if (button == 0) {
                 PanelElementEntry clicked = this.getEntryAtPosition(mouseX, mouseY);
                 if (clicked != null) {
                     dragging = clicked;
+                    dragStartTime = System.currentTimeMillis();
                     return true;
                 }
             }
@@ -217,20 +238,39 @@ public class PanelOrderScreen extends Screen {
         public void render(@Nonnull GuiGraphics gui, int index, int top, int left, int width, int height,
                            int mouseX, int mouseY, boolean hovered, float partialTick) {
 
-            boolean isDragging = PanelOrderScreen.this.elementsList.dragging == this;
+            boolean isDragging = PanelOrderScreen.this.elementsList.isDragging(this);
 
             float targetAnimation = (hovered || isDragging) ? 1.0f : 0.0f;
             hoverAnimation = Mth.lerp(0.3f, hoverAnimation, targetAnimation);
 
             float scale = 1.0f + (hoverAnimation * 0.05f);
 
-            // Белое выделение при hover
+            float shakeX = 0;
+            float shakeY = 0;
+            if (isDragging) {
+                long elapsed = System.currentTimeMillis() - PanelOrderScreen.this.elementsList.getDragStartTime();
+                double t = elapsed * 0.008;
+                shakeX = (float) (Math.sin(t * 2) * 1.5);
+                shakeY = (float) (Math.sin(t) * 0.75);
+            }
+
+            int highlightPadding = 6;
+            int highlightLeft = left - highlightPadding;
+            int highlightRight = left + width + highlightPadding;
+
             if (hovered || isDragging) {
                 int highlightAlpha = (int) (hoverAnimation * 80);
-                gui.fill(left, top, left + width, top + height, (highlightAlpha << 24) | 0xFFFFFF);
+                gui.fill(
+                        (int)(highlightLeft + shakeX), (int)(top - 2 + shakeY),
+                        (int)(highlightRight + shakeX), (int)(top + height + 2 + shakeY),
+                        (highlightAlpha << 24) | 0xFFFFFF
+                );
             }
 
             gui.pose().pushPose();
+
+            gui.pose().translate(shakeX, shakeY, 0);
+
             gui.pose().translate(left + width / 2f, top + height / 2f, 0);
             gui.pose().scale(scale, scale, 1.0f);
             gui.pose().translate(-(left + width / 2f), -(top + height / 2f), 0);
@@ -238,16 +278,19 @@ public class PanelOrderScreen extends Screen {
             boolean enabled = configValue == null || configValue.get();
             int textColor = enabled ? 0xFFFFFF : 0x808080;
 
-            // Иконка перетаскивания
-            gui.drawString(PanelOrderScreen.this.font, "≡", left + 5, top + 8, 0x808080);
+            if (isDragging) {
+                textColor = 0xFFFF00;
+            }
 
-            // Название
+            gui.drawString(PanelOrderScreen.this.font, "≡", left + 5, top + 8, isDragging ? 0xFFFF00 : 0x808080);
             gui.drawString(PanelOrderScreen.this.font, name, left + 20, top + 8, textColor);
 
-            // Статус
             if (configValue != null) {
                 String status = enabled ? "Visible" : "Hidden";
                 int statusColor = enabled ? 0x55FF55 : 0xFF5555;
+                if (isDragging) {
+                    statusColor = enabled ? 0xAAFF55 : 0xFFAA55;
+                }
                 int statusWidth = PanelOrderScreen.this.font.width(status);
                 gui.drawString(PanelOrderScreen.this.font, status, left + width - statusWidth - 5, top + 8, statusColor);
             }
