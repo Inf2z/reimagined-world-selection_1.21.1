@@ -6,6 +6,7 @@
   "config.reimagined_world_selection.panel_width_ratio": "Width Ratio",
   "config.reimagined_world_selection.panel_background_style": "Background Style",
   "config.reimagined_world_selection.panel_alpha": "Background Transparency",
+  "config.reimagined_world_selection.panel_behaviour": "Panel Behaviour",
 
   "config.reimagined_world_selection.show_world_name": "Show World Name",
   "config.reimagined_world_selection.show_folder_name": "Show Folder Name",

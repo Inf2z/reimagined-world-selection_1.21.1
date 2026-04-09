@@ -1,6 +1,8 @@
 package com.inf2z.reimagined_world_selection;
 
 import net.neoforged.neoforge.common.ModConfigSpec;
+import java.util.ArrayList;
+import java.util.List;
 
 public class Config {
     public static final ModConfigSpec SPEC;
@@ -8,6 +10,7 @@ public class Config {
     public static final ModConfigSpec.DoubleValue PANEL_WIDTH_RATIO;
     public static final ModConfigSpec.EnumValue<BackgroundStyle> PANEL_BACKGROUND_STYLE;
     public static final ModConfigSpec.IntValue PANEL_ALPHA;
+    public static final ModConfigSpec.EnumValue<PanelBehaviour> PANEL_BEHAVIOUR;
 
     public static final ModConfigSpec.BooleanValue ENABLE_WORLD_HOVER_ANIMATION;
     public static final ModConfigSpec.BooleanValue ENABLE_TEXT_HOVER_ANIMATION;
@@ -23,120 +26,125 @@ public class Config {
     public static final ModConfigSpec.BooleanValue SHOW_LAST_PLAYED;
     public static final ModConfigSpec.BooleanValue SHOW_LARGE_ICON;
 
-    public static final ModConfigSpec.ConfigValue<String> CUSTOM_LINE_1_LABEL;
-    public static final ModConfigSpec.ConfigValue<String> CUSTOM_LINE_1_FORMAT;
-    public static final ModConfigSpec.EnumValue<VarMode> CUSTOM_LINE_1_MODE;
-    public static final ModConfigSpec.EnumValue<VariableSource> CUSTOM_LINE_1_SOURCE;
-
-    public static final ModConfigSpec.ConfigValue<String> CUSTOM_LINE_2_LABEL;
-    public static final ModConfigSpec.ConfigValue<String> CUSTOM_LINE_2_FORMAT;
-    public static final ModConfigSpec.EnumValue<VarMode> CUSTOM_LINE_2_MODE;
-    public static final ModConfigSpec.EnumValue<VariableSource> CUSTOM_LINE_2_SOURCE;
-
-    public static final ModConfigSpec.ConfigValue<String> CUSTOM_LINE_3_LABEL;
-    public static final ModConfigSpec.ConfigValue<String> CUSTOM_LINE_3_FORMAT;
-    public static final ModConfigSpec.EnumValue<VarMode> CUSTOM_LINE_3_MODE;
-    public static final ModConfigSpec.EnumValue<VariableSource> CUSTOM_LINE_3_SOURCE;
-
-    public static final ModConfigSpec.ConfigValue<String> CUSTOM_LINE_4_LABEL;
-    public static final ModConfigSpec.ConfigValue<String> CUSTOM_LINE_4_FORMAT;
-    public static final ModConfigSpec.EnumValue<VarMode> CUSTOM_LINE_4_MODE;
-    public static final ModConfigSpec.EnumValue<VariableSource> CUSTOM_LINE_4_SOURCE;
-
-    public static final ModConfigSpec.ConfigValue<String> CUSTOM_LINE_5_LABEL;
-    public static final ModConfigSpec.ConfigValue<String> CUSTOM_LINE_5_FORMAT;
-    public static final ModConfigSpec.EnumValue<VarMode> CUSTOM_LINE_5_MODE;
-    public static final ModConfigSpec.EnumValue<VariableSource> CUSTOM_LINE_5_SOURCE;
-
-    public static final ModConfigSpec.ConfigValue<String> CUSTOM_LINE_6_LABEL;
-    public static final ModConfigSpec.ConfigValue<String> CUSTOM_LINE_6_FORMAT;
-    public static final ModConfigSpec.EnumValue<VarMode> CUSTOM_LINE_6_MODE;
-    public static final ModConfigSpec.EnumValue<VariableSource> CUSTOM_LINE_6_SOURCE;
+    public static final ModConfigSpec.ConfigValue<List<? extends String>> CUSTOM_LINES;
+    public static final ModConfigSpec.ConfigValue<List<? extends String>> PANEL_ORDER;
 
     public enum BackgroundStyle { GRAY, BLACK }
     public enum VarMode { BOOLEAN, ON_OFF, VALUE }
     public enum TimeFormat { MINUTES, HOURS, DAYS, WEEKS, MONTHS, YEARS }
     public enum VariableSource { WORLD, PLAYER }
+    public enum PanelBehaviour { DYNAMIC, STATIC }
 
     static {
         ModConfigSpec.Builder builder = new ModConfigSpec.Builder();
 
-        builder.translation("config.reimagined_world_selection.category.panel_settings");
-        builder.push("Panel Settings");
+        builder.comment("Panel Settings");
+        builder.push("panel_settings");
 
-        PANEL_WIDTH_RATIO = builder.translation("config.reimagined_world_selection.panel_width_ratio")
-                .defineInRange("panelWidthRatio", 0.4, 0.2, 0.6);
+        PANEL_WIDTH_RATIO = builder
+                .comment("Width ratio of the side panel (0.2 - 0.6)")
+                .defineInRange("panel_width_ratio", 0.4, 0.2, 0.6);
 
-        PANEL_BACKGROUND_STYLE = builder.translation("config.reimagined_world_selection.panel_background_style")
-                .defineEnum("backgroundStyle", BackgroundStyle.BLACK);
+        PANEL_BACKGROUND_STYLE = builder
+                .comment("Background style: GRAY or BLACK")
+                .defineEnum("panel_background_style", BackgroundStyle.BLACK);
 
-        PANEL_ALPHA = builder.translation("config.reimagined_world_selection.panel_alpha")
-                .defineInRange("panelAlpha", 102, 0, 255);
+        PANEL_ALPHA = builder
+                .comment("Background transparency (0-255)")
+                .defineInRange("panel_alpha", 102, 0, 255);
 
-        builder.pop();
-
-        builder.translation("config.reimagined_world_selection.category.element_animations");
-        builder.push("Element Animations");
-
-        ENABLE_WORLD_HOVER_ANIMATION = builder.translation("config.reimagined_world_selection.enable_world_hover_animation")
-                .define("enableWorldHoverAnimation", true);
-
-        ENABLE_TEXT_HOVER_ANIMATION = builder.translation("config.reimagined_world_selection.enable_text_hover_animation")
-                .define("enableTextHoverAnimation", true);
+        PANEL_BEHAVIOUR = builder
+                .comment("Panel behavior: DYNAMIC (with toggle button) or STATIC (always visible)")
+                .defineEnum("panel_behaviour", PanelBehaviour.DYNAMIC);
 
         builder.pop();
 
-        builder.translation("config.reimagined_world_selection.category.visible_information");
-        builder.push("Visible Information");
+        builder.comment("Element Animations");
+        builder.push("element_animations");
 
-        SHOW_WORLD_NAME = builder.translation("config.reimagined_world_selection.show_world_name").define("showWorldName", true);
-        SHOW_FOLDER_NAME = builder.translation("config.reimagined_world_selection.show_folder_name").define("showFolderName", true);
-        SHOW_GAME_MODE = builder.translation("config.reimagined_world_selection.show_game_mode").define("showGameMode", true);
-        SHOW_DIFFICULTY = builder.translation("config.reimagined_world_selection.show_difficulty").define("showDifficulty", true);
-        SHOW_TIME_PLAYED = builder.translation("config.reimagined_world_selection.show_time_played").define("showTimePlayed", true);
-        TIME_PLAYED_FORMAT = builder.translation("config.reimagined_world_selection.time_played_format").defineEnum("timePlayedFormat", TimeFormat.HOURS);
-        SHOW_VERSION = builder.translation("config.reimagined_world_selection.show_version").define("showVersion", true);
-        SHOW_CHEATS = builder.translation("config.reimagined_world_selection.show_cheats").define("showCheats", true);
-        SHOW_LAST_PLAYED = builder.translation("config.reimagined_world_selection.show_last_played").define("showLastPlayed", true);
-        SHOW_LARGE_ICON = builder.translation("config.reimagined_world_selection.show_large_icon").define("showLargeIcon", true);
+        ENABLE_WORLD_HOVER_ANIMATION = builder
+                .comment("Enable world selection hover animation")
+                .define("enable_world_hover_animation", true);
+
+        ENABLE_TEXT_HOVER_ANIMATION = builder
+                .comment("Enable panel text hover animation")
+                .define("enable_text_hover_animation", true);
 
         builder.pop();
 
-        builder.translation("config.reimagined_world_selection.category.custom_information_lines");
-        builder.push("Custom Information Lines");
+        builder.comment("Visible Information");
+        builder.push("visible_information");
 
-        CUSTOM_LINE_1_LABEL = builder.translation("config.reimagined_world_selection.custom_line_1_label").define("customLine1Label", "");
-        CUSTOM_LINE_1_FORMAT = builder.translation("config.reimagined_world_selection.custom_line_1_format").define("customLine1Format", "");
-        CUSTOM_LINE_1_MODE = builder.translation("config.reimagined_world_selection.custom_line_1_mode").defineEnum("customLine1Mode", VarMode.VALUE);
-        CUSTOM_LINE_1_SOURCE = builder.translation("config.reimagined_world_selection.custom_line_1_source").defineEnum("customLine1Source", VariableSource.WORLD);
+        SHOW_WORLD_NAME = builder.define("show_world_name", true);
+        SHOW_FOLDER_NAME = builder.define("show_folder_name", true);
+        SHOW_GAME_MODE = builder.define("show_game_mode", true);
+        SHOW_DIFFICULTY = builder.define("show_difficulty", true);
+        SHOW_TIME_PLAYED = builder.define("show_time_played", true);
+        TIME_PLAYED_FORMAT = builder.defineEnum("time_played_format", TimeFormat.HOURS);
+        SHOW_VERSION = builder.define("show_version", true);
+        SHOW_CHEATS = builder.define("show_cheats", true);
+        SHOW_LAST_PLAYED = builder.define("show_last_played", true);
+        SHOW_LARGE_ICON = builder.define("show_large_icon", true);
 
-        CUSTOM_LINE_2_LABEL = builder.translation("config.reimagined_world_selection.custom_line_2_label").define("customLine2Label", "");
-        CUSTOM_LINE_2_FORMAT = builder.translation("config.reimagined_world_selection.custom_line_2_format").define("customLine2Format", "");
-        CUSTOM_LINE_2_MODE = builder.translation("config.reimagined_world_selection.custom_line_2_mode").defineEnum("customLine2Mode", VarMode.VALUE);
-        CUSTOM_LINE_2_SOURCE = builder.translation("config.reimagined_world_selection.custom_line_2_source").defineEnum("customLine2Source", VariableSource.WORLD);
+        builder.pop();
 
-        CUSTOM_LINE_3_LABEL = builder.translation("config.reimagined_world_selection.custom_line_3_label").define("customLine3Label", "");
-        CUSTOM_LINE_3_FORMAT = builder.translation("config.reimagined_world_selection.custom_line_3_format").define("customLine3Format", "");
-        CUSTOM_LINE_3_MODE = builder.translation("config.reimagined_world_selection.custom_line_3_mode").defineEnum("customLine3Mode", VarMode.VALUE);
-        CUSTOM_LINE_3_SOURCE = builder.translation("config.reimagined_world_selection.custom_line_3_source").defineEnum("customLine3Source", VariableSource.WORLD);
+        builder.comment("Internal Settings (managed by in-game editors)");
+        builder.push("internal");
 
-        CUSTOM_LINE_4_LABEL = builder.translation("config.reimagined_world_selection.custom_line_4_label").define("customLine4Label", "");
-        CUSTOM_LINE_4_FORMAT = builder.translation("config.reimagined_world_selection.custom_line_4_format").define("customLine4Format", "");
-        CUSTOM_LINE_4_MODE = builder.translation("config.reimagined_world_selection.custom_line_4_mode").defineEnum("customLine4Mode", VarMode.VALUE);
-        CUSTOM_LINE_4_SOURCE = builder.translation("config.reimagined_world_selection.custom_line_4_source").defineEnum("customLine4Source", VariableSource.WORLD);
+        CUSTOM_LINES = builder
+                .comment("Custom lines data - use in-game Custom Lines Editor")
+                .defineList("custom_lines", new ArrayList<>(), obj -> obj instanceof String);
 
-        CUSTOM_LINE_5_LABEL = builder.translation("config.reimagined_world_selection.custom_line_5_label").define("customLine5Label", "");
-        CUSTOM_LINE_5_FORMAT = builder.translation("config.reimagined_world_selection.custom_line_5_format").define("customLine5Format", "");
-        CUSTOM_LINE_5_MODE = builder.translation("config.reimagined_world_selection.custom_line_5_mode").defineEnum("customLine5Mode", VarMode.VALUE);
-        CUSTOM_LINE_5_SOURCE = builder.translation("config.reimagined_world_selection.custom_line_5_source").defineEnum("customLine5Source", VariableSource.WORLD);
-
-        CUSTOM_LINE_6_LABEL = builder.translation("config.reimagined_world_selection.custom_line_6_label").define("customLine6Label", "");
-        CUSTOM_LINE_6_FORMAT = builder.translation("config.reimagined_world_selection.custom_line_6_format").define("customLine6Format", "");
-        CUSTOM_LINE_6_MODE = builder.translation("config.reimagined_world_selection.custom_line_6_mode").defineEnum("customLine6Mode", VarMode.VALUE);
-        CUSTOM_LINE_6_SOURCE = builder.translation("config.reimagined_world_selection.custom_line_6_source").defineEnum("customLine6Source", VariableSource.WORLD);
+        PANEL_ORDER = builder
+                .comment("Panel element order - use in-game Panel Order Editor")
+                .defineList("panel_order", new ArrayList<>(), obj -> obj instanceof String);
 
         builder.pop();
 
         SPEC = builder.build();
+    }
+
+    public record CustomLineConfig(String label, String format, VarMode mode, VariableSource source, int varIndex) {
+
+        public static CustomLineConfig parse(String data, int index) {
+            String[] parts = data.split(";", -1);
+
+            String label = parts.length > 0 ? parts[0] : "";
+            String format = parts.length > 1 ? parts[1] : "";
+
+            VarMode mode = VarMode.VALUE;
+            if (parts.length > 2) {
+                try {
+                    mode = VarMode.valueOf(parts[2].toUpperCase());
+                } catch (IllegalArgumentException ignored) {}
+            }
+
+            VariableSource source = VariableSource.WORLD;
+            if (parts.length > 3) {
+                try {
+                    source = VariableSource.valueOf(parts[3].toUpperCase());
+                } catch (IllegalArgumentException ignored) {}
+            }
+
+            return new CustomLineConfig(label, format, mode, source, index + 1);
+        }
+
+        public boolean isEmpty() {
+            return label.isEmpty() && format.isEmpty();
+        }
+    }
+
+    public static List<CustomLineConfig> getCustomLines() {
+        List<CustomLineConfig> lines = new ArrayList<>();
+        List<? extends String> data = CUSTOM_LINES.get();
+
+        for (int i = 0; i < data.size(); i++) {
+            CustomLineConfig config = CustomLineConfig.parse(data.get(i), i);
+            if (!config.isEmpty()) {
+                lines.add(config);
+            }
+        }
+
+        return lines;
     }
 }

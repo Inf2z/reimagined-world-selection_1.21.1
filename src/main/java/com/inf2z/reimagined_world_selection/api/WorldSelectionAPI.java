@@ -2,11 +2,13 @@ package com.inf2z.reimagined_world_selection.api;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import net.minecraft.client.Minecraft;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import java.io.Reader;
 import java.io.Writer;
@@ -21,26 +23,39 @@ public class WorldSelectionAPI {
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Map<String, Map<String, String>> cache = new HashMap<>();
 
+    @Deprecated
     public static void saveCurrent(@Nullable String var1, @Nullable String var2, @Nullable String var3) {
-        saveCurrentTo("world", var1, var2, var3, null, null, null);
+        saveCurrentExtended(var1, var2, var3, null, null, null);
     }
 
-    public static void saveCurrentExtended(@Nullable String var1, @Nullable String var2, @Nullable String var3, @Nullable String var4, @Nullable String var5, @Nullable String var6) {
-        saveCurrentTo("world", var1, var2, var3, var4, var5, var6);
+    @Deprecated
+    public static void saveCurrentExtended(@Nullable String var1, @Nullable String var2, @Nullable String var3,
+                                           @Nullable String var4, @Nullable String var5, @Nullable String var6) {
+        Map<String, String> vars = new HashMap<>();
+        vars.put("1", safe(var1));
+        vars.put("2", safe(var2));
+        vars.put("3", safe(var3));
+        vars.put("4", safe(var4));
+        vars.put("5", safe(var5));
+        vars.put("6", safe(var6));
+
+        saveCurrentTo("world", vars);
     }
 
-    public static void saveCurrentTo(String storageType, @Nullable String var1, @Nullable String var2, @Nullable String var3, @Nullable String var4, @Nullable String var5, @Nullable String var6) {
+    public static void saveCurrentTo(String storageType, Map<String, String> variables) {
         StorageContext context = getWritableContext(storageType);
         if (context == null) return;
 
         Map<String, String> vars = getVariablesInternal(context.worldId(), context.storageKey());
 
-        applyVarIfNotFrozen(vars, 1, var1);
-        applyVarIfNotFrozen(vars, 2, var2);
-        applyVarIfNotFrozen(vars, 3, var3);
-        applyVarIfNotFrozen(vars, 4, var4);
-        applyVarIfNotFrozen(vars, 5, var5);
-        applyVarIfNotFrozen(vars, 6, var6);
+        for (Map.Entry<String, String> entry : variables.entrySet()) {
+            try {
+                int lineNumber = Integer.parseInt(entry.getKey());
+                applyVarIfNotFrozen(vars, lineNumber, entry.getValue());
+            } catch (NumberFormatException e) {
+                LOGGER.warn("Invalid line number: {}", entry.getKey());
+            }
+        }
 
         saveToDisk(context.worldId(), context.storageKey(), vars);
     }
@@ -75,6 +90,7 @@ public class WorldSelectionAPI {
         updateVar(lineNumber, storageType, "0");
     }
 
+    @Nonnull
     public static String getString(int lineNumber, String storageType) {
         StorageContext context = getReadableContext(storageType);
         if (context == null) return "";
@@ -94,13 +110,17 @@ public class WorldSelectionAPI {
         setFrozenState(lineNumber, storageType, false);
     }
 
-    public static Map<String, String> getWorldVariables(String worldId) {
+    @Nonnull
+    public static Map<String, String> getWorldVariables(@Nullable String worldId) {
+        if (worldId == null || worldId.isEmpty()) return new HashMap<>();
         return getVariablesInternal(worldId, "save_folder");
     }
 
-    public static Map<String, String> getPlayerVariables(String worldId) {
+    @Nonnull
+    public static Map<String, String> getPlayerVariables(@Nullable String worldId) {
+        if (worldId == null || worldId.isEmpty()) return new HashMap<>();
         String playerKey = getCurrentPlayerStorageKey();
-        if (playerKey == null) return createDefaultVars();
+        if (playerKey == null) return new HashMap<>();
         return getVariablesInternal(worldId, playerKey);
     }
 
@@ -127,27 +147,28 @@ public class WorldSelectionAPI {
         }
     }
 
+    @Nonnull
     private static Map<String, String> getVariablesInternal(String worldId, String storageKey) {
         String cacheKey = worldId + "|" + storageKey;
         if (cache.containsKey(cacheKey)) {
-            return cache.get(cacheKey);
+            Map<String, String> cached = cache.get(cacheKey);
+            return cached != null ? cached : new HashMap<>();
         }
 
-        Map<String, String> vars = createDefaultVars();
-        Path path = resolveStoragePath(worldId, storageKey);
-
+        Map<String, String> vars = new HashMap<>();
         try {
-            if (Files.exists(path)) {
+            Path path = resolveStoragePath(worldId, storageKey);
+            if (path != null && Files.exists(path)) {
                 readVarsFromPath(vars, path);
             } else if ("save_folder".equals(storageKey)) {
-                Path legacyPath = Minecraft.getInstance().gameDirectory.toPath()
-                        .resolve("saves").resolve(worldId).resolve("reimagined_vars.json");
+                Path gameDir = Minecraft.getInstance().gameDirectory.toPath();
+                Path legacyPath = gameDir.resolve("saves").resolve(worldId).resolve("reimagined_vars.json");
                 if (Files.exists(legacyPath)) {
                     readVarsFromPath(vars, legacyPath);
                 }
             }
         } catch (Exception e) {
-            LOGGER.debug("Failed to read vars for world {} and storage {}", worldId, storageKey, e);
+            LOGGER.debug("Failed to read vars for world {} and storage {}", worldId, storageKey);
         }
 
         cache.put(cacheKey, vars);
@@ -158,9 +179,8 @@ public class WorldSelectionAPI {
         try (Reader reader = Files.newBufferedReader(path)) {
             JsonObject json = GSON.fromJson(reader, JsonObject.class);
             if (json != null) {
-                for (int i = 1; i <= 6; i++) {
-                    if (json.has("var" + i)) vars.put("var" + i, json.get("var" + i).getAsString());
-                    if (json.has("frozen" + i)) vars.put("frozen" + i, json.get("frozen" + i).getAsString());
+                for (Map.Entry<String, JsonElement> entry : json.entrySet()) {
+                    vars.put(entry.getKey(), entry.getValue().getAsString());
                 }
             }
         }
@@ -169,29 +189,21 @@ public class WorldSelectionAPI {
     private static void saveToDisk(String worldId, String storageKey, Map<String, String> vars) {
         try {
             Path path = resolveStoragePath(worldId, storageKey);
+            if (path == null) return;
+
             Files.createDirectories(path.getParent());
 
             JsonObject json = new JsonObject();
-            for (int i = 1; i <= 6; i++) {
-                json.addProperty("var" + i, vars.getOrDefault("var" + i, ""));
-                json.addProperty("frozen" + i, vars.getOrDefault("frozen" + i, "false"));
+            for (Map.Entry<String, String> entry : vars.entrySet()) {
+                json.addProperty(entry.getKey(), entry.getValue());
             }
 
             try (Writer writer = Files.newBufferedWriter(path)) {
                 GSON.toJson(json, writer);
             }
         } catch (Exception e) {
-            LOGGER.error("Failed to save vars for world {} and storage {}", worldId, storageKey, e);
+            LOGGER.error("Failed to save vars for world {}", worldId);
         }
-    }
-
-    private static Map<String, String> createDefaultVars() {
-        Map<String, String> vars = new HashMap<>();
-        for (int i = 1; i <= 6; i++) {
-            vars.put("var" + i, "");
-            vars.put("frozen" + i, "false");
-        }
-        return vars;
     }
 
     private static String safe(@Nullable String value) {
@@ -203,8 +215,7 @@ public class WorldSelectionAPI {
             if (value != null && !value.isEmpty()) {
                 return Double.parseDouble(value);
             }
-        } catch (NumberFormatException ignored) {
-        }
+        } catch (NumberFormatException ignored) {}
         return 0.0;
     }
 
@@ -219,7 +230,11 @@ public class WorldSelectionAPI {
 
     @Nullable
     private static String getCurrentPlayerStorageKey() {
-        return Minecraft.getInstance().getUser().getProfileId().toString();
+        try {
+            return Minecraft.getInstance().getUser().getProfileId().toString();
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     @Nullable
@@ -240,23 +255,25 @@ public class WorldSelectionAPI {
 
     @Nullable
     private static String resolveStorageKey(String storageType) {
-        if ("world".equalsIgnoreCase(storageType)) {
-            return "save_folder";
-        }
-        if ("player".equalsIgnoreCase(storageType)) {
-            return getCurrentPlayerStorageKey();
-        }
+        if ("world".equalsIgnoreCase(storageType)) return "save_folder";
+        if ("player".equalsIgnoreCase(storageType)) return getCurrentPlayerStorageKey();
         return null;
     }
 
+    @Nullable
     private static Path resolveStoragePath(String worldId, String storageKey) {
-        Path worldDir = Minecraft.getInstance().gameDirectory.toPath().resolve("saves").resolve(worldId);
+        try {
+            Path gameDir = Minecraft.getInstance().gameDirectory.toPath();
+            Path worldDir = gameDir.resolve("saves").resolve(worldId);
 
-        if ("save_folder".equals(storageKey)) {
-            return worldDir.resolve("reimagined_vars.json");
+            if ("save_folder".equals(storageKey)) {
+                return worldDir.resolve("reimagined_vars.json");
+            }
+
+            return worldDir.resolve("reimagined_player_vars").resolve(storageKey + ".json");
+        } catch (Exception e) {
+            return null;
         }
-
-        return worldDir.resolve("reimagined_player_vars").resolve(storageKey + ".json");
     }
 
     private record StorageContext(String worldId, String storageKey) {}

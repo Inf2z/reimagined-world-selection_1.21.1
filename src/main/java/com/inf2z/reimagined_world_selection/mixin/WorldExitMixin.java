@@ -18,7 +18,6 @@ public class WorldExitMixin {
 
         if (screen instanceof PauseScreen && mc.level != null && mc.getSingleplayerServer() != null) {
             String worldId = mc.getSingleplayerServer().getWorldData().getLevelName();
-            System.out.println("Pause screen opening, taking screenshot before menu renders...");
             WorldScreenshotHandler.takeScreenshot(worldId);
         }
     }

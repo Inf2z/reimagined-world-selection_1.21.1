@@ -33,10 +33,7 @@ import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.text.SimpleDateFormat;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.Locale;
-import java.util.Map;
+import java.util.*;
 
 @ParametersAreNonnullByDefault
 public class ReimaginedSelectWorldScreen extends SelectWorldScreen {
@@ -51,6 +48,11 @@ public class ReimaginedSelectWorldScreen extends SelectWorldScreen {
 
     private float sidebarScroll;
     private float sidebarTargetScroll;
+
+    private static boolean panelVisible = true;
+    private float panelAnimationProgress = panelVisible ? 1.0f : 0.0f;
+
+    private final Map<AbstractWidget, Integer> originalButtonWidths = new HashMap<>();
 
     public ReimaginedSelectWorldScreen(@Nullable Screen lastScreen) {
         super(lastScreen);
@@ -68,10 +70,55 @@ public class ReimaginedSelectWorldScreen extends SelectWorldScreen {
         return Component.empty();
     }
 
+    private void togglePanel() {
+        panelVisible = !panelVisible;
+    }
+
+    private boolean isPanelDynamic() {
+        return Config.PANEL_BEHAVIOUR.get() == Config.PanelBehaviour.DYNAMIC;
+    }
+
     private void applyReimaginedLayout() {
         this.panelWidth = (int) (this.width * Config.PANEL_WIDTH_RATIO.get());
-        int rx = this.panelWidth;
-        int rw = this.width - this.panelWidth;
+
+        if (!isPanelDynamic()) {
+            panelVisible = true;
+            panelAnimationProgress = 1.0f;
+        }
+
+        saveOriginalButtonWidths();
+        updateLayout();
+    }
+
+    private void saveOriginalButtonWidths() {
+        int fullPanelWidth = this.panelWidth;
+        int rw = this.width - fullPanelWidth;
+        int panelWidthAvailable = rw - 40;
+
+        int columnGap = 4;
+        int innerGap = 4;
+
+        int columnWidth = (panelWidthAvailable - columnGap) / 2;
+        int smallButtonWidth = (columnWidth - innerGap) / 2;
+        int largeButtonWidth = smallButtonWidth * 2 + innerGap;
+
+        for (GuiEventListener listener : this.children()) {
+            if (listener instanceof AbstractWidget widget && widget.getY() > this.height - 80) {
+                String key = getWidgetKey(widget);
+
+                if ("selectWorld.select".equals(key) || "selectWorld.create".equals(key)) {
+                    originalButtonWidths.put(widget, largeButtonWidth);
+                } else if ("selectWorld.edit".equals(key) || "selectWorld.delete".equals(key) ||
+                        "selectWorld.recreate".equals(key) || "gui.back".equals(key)) {
+                    originalButtonWidths.put(widget, smallButtonWidth);
+                }
+            }
+        }
+    }
+
+    private void updateLayout() {
+        int currentPanelWidth = (int) (this.panelWidth * panelAnimationProgress);
+        int rw = this.width - currentPanelWidth;
 
         for (GuiEventListener listener : this.children()) {
             if (listener instanceof AbstractWidget widget) {
@@ -85,18 +132,18 @@ public class ReimaginedSelectWorldScreen extends SelectWorldScreen {
                 if (widget instanceof WorldSelectionList list) {
                     this.cachedList = list;
                     list.setWidth(rw - 40);
-                    list.setX(rx + 20);
+                    list.setX(currentPanelWidth + 20);
                 } else if (widget instanceof EditBox search) {
                     search.setY(22);
-                    search.setX(this.panelWidth + (rw - search.getWidth()) / 2);
+                    search.setX(currentPanelWidth + (rw - search.getWidth()) / 2);
                 }
             }
         }
 
-        layoutFooterButtons(rx, rw);
+        layoutFooterButtons(currentPanelWidth, rw);
     }
 
-    private void layoutFooterButtons(int rx, int rw) {
+    private void layoutFooterButtons(int panelOffset, int rw) {
         AbstractWidget play = null;
         AbstractWidget create = null;
         AbstractWidget edit = null;
@@ -128,17 +175,15 @@ public class ReimaginedSelectWorldScreen extends SelectWorldScreen {
             return;
         }
 
-        int panelLeft = rx + 20;
-        int panelWidthAvailable = rw - 40;
+        int largeButtonWidth = originalButtonWidths.getOrDefault(play, 150);
+        int smallButtonWidth = originalButtonWidths.getOrDefault(edit, 73);
 
         int columnGap = 4;
         int innerGap = 4;
 
-        int columnWidth = (panelWidthAvailable - columnGap) / 2;
-        int smallButtonWidth = (columnWidth - innerGap) / 2;
-        int largeButtonWidth = smallButtonWidth * 2 + innerGap;
-
-        int rightColumnX = panelLeft + columnWidth + columnGap;
+        int totalWidth = largeButtonWidth * 2 + columnGap;
+        int panelLeft = panelOffset + (rw - totalWidth) / 2;
+        int rightColumnX = panelLeft + largeButtonWidth + columnGap;
 
         int topRowY = this.height - 52;
         int bottomRowY = topRowY + 22;
@@ -178,7 +223,8 @@ public class ReimaginedSelectWorldScreen extends SelectWorldScreen {
 
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
-        if (mouseX >= 0 && mouseX < this.panelWidth) {
+        int currentPanelWidth = (int) (this.panelWidth * panelAnimationProgress);
+        if (mouseX >= 0 && mouseX < currentPanelWidth) {
             int contentHeight = getSidebarContentHeight();
             int visibleHeight = this.height - 40;
             int maxScroll = Math.max(0, contentHeight - visibleHeight);
@@ -190,23 +236,86 @@ public class ReimaginedSelectWorldScreen extends SelectWorldScreen {
 
     @Override
     public void render(GuiGraphics gui, int mouseX, int mouseY, float tick) {
+        if (isPanelDynamic()) {
+            float targetProgress = panelVisible ? 1.0f : 0.0f;
+            float animationSpeed = 0.15f;
+
+            if (Math.abs(panelAnimationProgress - targetProgress) > 0.001f) {
+                panelAnimationProgress = Mth.lerp(animationSpeed, panelAnimationProgress, targetProgress);
+                updateLayout();
+            } else {
+                panelAnimationProgress = targetProgress;
+            }
+        }
+
+        int currentPanelWidth = (int) (this.panelWidth * panelAnimationProgress);
         int originalWidth = this.width;
-        int rw = this.width - this.panelWidth;
-        int desiredCenter = this.panelWidth + rw / 2;
+        int rw = this.width - currentPanelWidth;
+        int desiredCenter = currentPanelWidth + rw / 2;
 
         this.width = desiredCenter * 2;
         super.render(gui, mouseX, mouseY, tick);
         this.width = originalWidth;
 
-        int alpha = Config.PANEL_ALPHA.get();
-        int bgColor = Config.PANEL_BACKGROUND_STYLE.get() == Config.BackgroundStyle.GRAY ? 0x1A1A1A : 0x000000;
+        if (panelAnimationProgress > 0.001f) {
+            int alpha = Config.PANEL_ALPHA.get();
+            int bgColor = Config.PANEL_BACKGROUND_STYLE.get() == Config.BackgroundStyle.GRAY ? 0x1A1A1A : 0x000000;
 
-        gui.fill(0, 0, this.panelWidth, this.height, (alpha << 24) | bgColor);
-        gui.fill(this.panelWidth - 1, 0, this.panelWidth, this.height, 0x66555555);
+            gui.fill(0, 0, currentPanelWidth, this.height, (alpha << 24) | bgColor);
+            gui.fill(currentPanelWidth - 1, 0, currentPanelWidth, this.height, 0x66555555);
 
-        this.sidebarScroll = Mth.lerp(0.2f, this.sidebarScroll, this.sidebarTargetScroll);
+            this.sidebarScroll = Mth.lerp(0.2f, this.sidebarScroll, this.sidebarTargetScroll);
 
-        renderSidebarInfo(gui);
+            renderSidebarInfo(gui);
+        }
+
+        if (isPanelDynamic()) {
+            renderToggleButton(gui, mouseX, mouseY);
+        }
+    }
+
+    private void renderToggleButton(GuiGraphics gui, int mouseX, int mouseY) {
+        int currentPanelWidth = (int) (this.panelWidth * panelAnimationProgress);
+        int buttonWidth = 12;
+        int buttonHeight = 17;
+        int toggleButtonX = currentPanelWidth;
+        int toggleButtonY = (this.height - buttonHeight) / 2;
+
+        boolean hovered = mouseX >= toggleButtonX && mouseX <= toggleButtonX + buttonWidth &&
+                mouseY >= toggleButtonY && mouseY <= toggleButtonY + buttonHeight;
+
+        int bgColor = hovered ? 0x80404040 : 0x60303030;
+        gui.fill(toggleButtonX, toggleButtonY, toggleButtonX + buttonWidth, toggleButtonY + buttonHeight, bgColor);
+
+        gui.fill(toggleButtonX + buttonWidth - 1, toggleButtonY, toggleButtonX + buttonWidth, toggleButtonY + buttonHeight, 0x66555555);
+
+        String arrow = panelVisible ? "<" : ">";
+        int textWidth = this.font.width(arrow);
+        int textX = toggleButtonX + (buttonWidth - textWidth) / 2;
+        int textY = toggleButtonY + (buttonHeight - this.font.lineHeight) / 2;
+
+        int textColor = hovered ? 0xFFFFFFFF : 0xFFCCCCCC;
+
+        gui.drawString(this.font, arrow, textX, textY, textColor, true);
+    }
+
+    @Override
+    public boolean mouseClicked(double mouseX, double mouseY, int button) {
+        if (isPanelDynamic()) {
+            int currentPanelWidth = (int) (this.panelWidth * panelAnimationProgress);
+            int buttonWidth = 12;
+            int buttonHeight = 17;
+            int toggleButtonX = currentPanelWidth;
+            int toggleButtonY = (this.height - buttonHeight) / 2;
+
+            if (mouseX >= toggleButtonX && mouseX <= toggleButtonX + buttonWidth &&
+                    mouseY >= toggleButtonY && mouseY <= toggleButtonY + buttonHeight && button == 0) {
+                togglePanel();
+                return true;
+            }
+        }
+
+        return super.mouseClicked(mouseX, mouseY, button);
     }
 
     private int getSidebarContentHeight() {
@@ -215,98 +324,74 @@ public class ReimaginedSelectWorldScreen extends SelectWorldScreen {
         int y = 20;
         int pW = this.panelWidth - 20;
 
-        if (Config.SHOW_LARGE_ICON.get()) {
-            int iconHeight = pW * 9 / 16;
-            y += iconHeight + 12;
+        List<String> order = (List<String>) Config.PANEL_ORDER.get();
+        if (order.isEmpty()) {
+            order = getDefaultOrder();
         }
 
-        if (Config.SHOW_WORLD_NAME.get()) y += this.font.lineHeight + 4;
-        if (Config.SHOW_FOLDER_NAME.get()) y += this.font.lineHeight + 8;
-        else y += 6;
+        for (String id : order) {
+            y = addHeightForElement(id, y, pW);
+        }
 
-        if (Config.SHOW_GAME_MODE.get()) y += 12;
-        if (Config.SHOW_DIFFICULTY.get()) y += 12;
-        if (Config.SHOW_TIME_PLAYED.get()) y += 12;
-        if (Config.SHOW_VERSION.get()) y += 12;
-        if (Config.SHOW_CHEATS.get()) y += 12;
-
-        y += 6;
-
-        if (!Config.CUSTOM_LINE_1_LABEL.get().isEmpty() || !Config.CUSTOM_LINE_1_FORMAT.get().isEmpty()) y += 12;
-        if (!Config.CUSTOM_LINE_2_LABEL.get().isEmpty() || !Config.CUSTOM_LINE_2_FORMAT.get().isEmpty()) y += 12;
-        if (!Config.CUSTOM_LINE_3_LABEL.get().isEmpty() || !Config.CUSTOM_LINE_3_FORMAT.get().isEmpty()) y += 12;
-        if (!Config.CUSTOM_LINE_4_LABEL.get().isEmpty() || !Config.CUSTOM_LINE_4_FORMAT.get().isEmpty()) y += 12;
-        if (!Config.CUSTOM_LINE_5_LABEL.get().isEmpty() || !Config.CUSTOM_LINE_5_FORMAT.get().isEmpty()) y += 12;
-        if (!Config.CUSTOM_LINE_6_LABEL.get().isEmpty() || !Config.CUSTOM_LINE_6_FORMAT.get().isEmpty()) y += 12;
-
-        if (Config.SHOW_LAST_PLAYED.get()) y += this.font.lineHeight + 5;
+        List<Config.CustomLineConfig> customLines = Config.getCustomLines();
+        y += customLines.size() * 12;
 
         return y + 10;
     }
 
+    private int addHeightForElement(String id, int y, int pW) {
+        return switch (id) {
+            case "large_icon" -> Config.SHOW_LARGE_ICON.get() ? y + (pW * 9 / 16) + 12 : y;
+            case "world_name" -> Config.SHOW_WORLD_NAME.get() ? y + this.font.lineHeight + 4 : y;
+            case "folder_name" -> Config.SHOW_FOLDER_NAME.get() ? y + this.font.lineHeight + 8 : y;
+            case "game_mode" -> Config.SHOW_GAME_MODE.get() ? y + 12 : y;
+            case "difficulty" -> Config.SHOW_DIFFICULTY.get() ? y + 12 : y;
+            case "time_played" -> Config.SHOW_TIME_PLAYED.get() ? y + 12 : y;
+            case "version" -> Config.SHOW_VERSION.get() ? y + 12 : y;
+            case "cheats" -> Config.SHOW_CHEATS.get() ? y + 12 : y;
+            case "last_played" -> Config.SHOW_LAST_PLAYED.get() ? y + this.font.lineHeight + 5 : y;
+            default -> y;
+        };
+    }
+
+    private List<String> getDefaultOrder() {
+        List<String> order = new ArrayList<>();
+        order.add("large_icon");
+        order.add("world_name");
+        order.add("folder_name");
+        order.add("game_mode");
+        order.add("difficulty");
+        order.add("time_played");
+        order.add("version");
+        order.add("cheats");
+        order.add("last_played");
+        return order;
+    }
+
     private void renderSidebarInfo(GuiGraphics gui) {
         if (this.cachedList == null || !(this.cachedList.getSelected() instanceof WorldSelectionList.WorldListEntry entry)) return;
+        if (panelAnimationProgress < 0.001f) return;
 
         int mouseX = (int) (Minecraft.getInstance().mouseHandler.xpos() * this.width / Minecraft.getInstance().getWindow().getScreenWidth());
         int mouseY = (int) (Minecraft.getInstance().mouseHandler.ypos() * this.height / Minecraft.getInstance().getWindow().getScreenHeight());
 
         LevelSummary s = ((WorldListEntryAccessor) (Object) entry).getSummary();
-        int cx = this.panelWidth / 2;
+
+        int currentPanelWidth = (int) (this.panelWidth * panelAnimationProgress);
+        int offset = this.panelWidth - currentPanelWidth;
+        int cx = this.panelWidth / 2 - offset;
         int y = 20 - (int) this.sidebarScroll;
         int pW = this.panelWidth - 20;
 
-        gui.enableScissor(0, 0, this.panelWidth, this.height);
+        gui.enableScissor(0, 0, currentPanelWidth, this.height);
 
-        if (Config.SHOW_LARGE_ICON.get()) {
-            int iconHeight = pW * 9 / 16;
-            gui.blit(loadLargeIcon(s), cx - pW / 2, y, 0, 0, pW, iconHeight, pW, iconHeight);
-            y += iconHeight + 12;
+        List<String> order = (List<String>) Config.PANEL_ORDER.get();
+        if (order.isEmpty()) {
+            order = getDefaultOrder();
         }
 
-        if (Config.SHOW_WORLD_NAME.get()) {
-            y = drawScaled(gui, s.getLevelName(), cx, y, 0xFFFFFF, pW, true, false);
-            y += 2;
-        }
-
-        if (Config.SHOW_FOLDER_NAME.get()) {
-            y = drawScaled(gui, "(" + s.getLevelId() + ")", cx, y, 0x777777, pW, false, true);
-            y += 8;
-        } else {
-            y += 6;
-        }
-
-        if (Config.SHOW_GAME_MODE.get()) {
-            String modeText = s.isHardcore()
-                    ? Component.translatable("reimagined_world_selection.value.hardcore").getString()
-                    : s.getGameMode().getName().substring(0, 1).toUpperCase() + s.getGameMode().getName().substring(1);
-            int modeColor = s.isHardcore() ? 0xFFFF0000 : 0xAAAAAA;
-            y = renderAnimatedLine(gui, Component.translatable("reimagined_world_selection.label.mode").getString(), modeText, cx, y, modeColor, pW, mouseX, mouseY);
-        }
-
-        if (Config.SHOW_DIFFICULTY.get()) {
-            Path worldDir = Minecraft.getInstance().getLevelSource().getBaseDir().resolve(s.getLevelId());
-            WorldInfoHelper.DifficultyInfo difficultyInfo = WorldInfoHelper.readDifficulty(worldDir);
-
-            if (difficultyInfo != null) {
-                DifficultyRenderData data = getDifficultyRenderData(difficultyInfo);
-                y = renderAnimatedLine(gui, Component.translatable("reimagined_world_selection.label.difficulty").getString(), data.text(), cx, y, data.color(), pW, mouseX, mouseY);
-            }
-        }
-
-        if (Config.SHOW_TIME_PLAYED.get()) {
-            Path worldDir = Minecraft.getInstance().getLevelSource().getBaseDir().resolve(s.getLevelId());
-            long playTime = WorldInfoHelper.readPlayerPlayTime(worldDir);
-            y = renderAnimatedLine(gui, Component.translatable("reimagined_world_selection.label.time_played").getString(), formatPlayTime(playTime), cx, y, pW, mouseX, mouseY);
-        }
-
-        if (Config.SHOW_VERSION.get()) {
-            y = renderAnimatedLine(gui, Component.translatable("reimagined_world_selection.label.version").getString(), s.levelVersion().minecraftVersionName(), cx, y, pW, mouseX, mouseY);
-        }
-
-        if (Config.SHOW_CHEATS.get()) {
-            Integer redColorObj = ChatFormatting.RED.getColor();
-            int cheatsColor = redColorObj != null && s.hasCommands() ? redColorObj : 0xAAAAAA;
-            y = renderAnimatedLine(gui, Component.translatable("reimagined_world_selection.label.commands").getString(), s.hasCommands() ? "ON" : "OFF", cx, y, cheatsColor, pW, mouseX, mouseY);
+        for (String id : order) {
+            y = renderElement(gui, id, s, cx, y, pW, mouseX, mouseY);
         }
 
         y += 6;
@@ -314,39 +399,111 @@ public class ReimaginedSelectWorldScreen extends SelectWorldScreen {
         Map<String, String> worldVars = WorldSelectionAPI.getWorldVariables(s.getLevelId());
         Map<String, String> playerVars = WorldSelectionAPI.getPlayerVariables(s.getLevelId());
 
-        y = renderCustomAnimatedLine(gui, Config.CUSTOM_LINE_1_LABEL.get(), Config.CUSTOM_LINE_1_FORMAT.get(), Config.CUSTOM_LINE_1_MODE.get(), Config.CUSTOM_LINE_1_SOURCE.get(), worldVars, playerVars, 1, s, cx, y, pW, mouseX, mouseY);
-        y = renderCustomAnimatedLine(gui, Config.CUSTOM_LINE_2_LABEL.get(), Config.CUSTOM_LINE_2_FORMAT.get(), Config.CUSTOM_LINE_2_MODE.get(), Config.CUSTOM_LINE_2_SOURCE.get(), worldVars, playerVars, 2, s, cx, y, pW, mouseX, mouseY);
-        y = renderCustomAnimatedLine(gui, Config.CUSTOM_LINE_3_LABEL.get(), Config.CUSTOM_LINE_3_FORMAT.get(), Config.CUSTOM_LINE_3_MODE.get(), Config.CUSTOM_LINE_3_SOURCE.get(), worldVars, playerVars, 3, s, cx, y, pW, mouseX, mouseY);
-        y = renderCustomAnimatedLine(gui, Config.CUSTOM_LINE_4_LABEL.get(), Config.CUSTOM_LINE_4_FORMAT.get(), Config.CUSTOM_LINE_4_MODE.get(), Config.CUSTOM_LINE_4_SOURCE.get(), worldVars, playerVars, 4, s, cx, y, pW, mouseX, mouseY);
-        y = renderCustomAnimatedLine(gui, Config.CUSTOM_LINE_5_LABEL.get(), Config.CUSTOM_LINE_5_FORMAT.get(), Config.CUSTOM_LINE_5_MODE.get(), Config.CUSTOM_LINE_5_SOURCE.get(), worldVars, playerVars, 5, s, cx, y, pW, mouseX, mouseY);
-        y = renderCustomAnimatedLine(gui, Config.CUSTOM_LINE_6_LABEL.get(), Config.CUSTOM_LINE_6_FORMAT.get(), Config.CUSTOM_LINE_6_MODE.get(), Config.CUSTOM_LINE_6_SOURCE.get(), worldVars, playerVars, 6, s, cx, y, pW, mouseX, mouseY);
-
-        if (Config.SHOW_LAST_PLAYED.get()) {
-            y += 3;
-            String dateStr = "(" + dateFormat.format(new Date(s.getLastPlayed())) + ")";
-            drawScaled(gui, dateStr, cx, y, 0x777777, pW, false, true);
+        List<Config.CustomLineConfig> customLines = Config.getCustomLines();
+        for (Config.CustomLineConfig line : customLines) {
+            y = renderCustomAnimatedLine(gui, line, worldVars, playerVars, s, cx, y, pW, mouseX, mouseY);
         }
 
         gui.disableScissor();
     }
 
-    private int renderCustomAnimatedLine(GuiGraphics gui, String label, String format, Config.VarMode mode, Config.VariableSource source, Map<String, String> worldVars, Map<String, String> playerVars, int index, LevelSummary s, int cx, int y, int maxWidth, int mouseX, int mouseY) {
-        if (label.isEmpty() && format.isEmpty()) return y;
+    private int renderElement(GuiGraphics gui, String id, LevelSummary s, int cx, int y, int pW, int mouseX, int mouseY) {
+        return switch (id) {
+            case "large_icon" -> {
+                if (Config.SHOW_LARGE_ICON.get()) {
+                    int iconHeight = pW * 9 / 16;
+                    gui.blit(loadLargeIcon(s), cx - pW / 2, y, 0, 0, pW, iconHeight, pW, iconHeight);
+                    yield y + iconHeight + 12;
+                }
+                yield y;
+            }
+            case "world_name" -> {
+                if (Config.SHOW_WORLD_NAME.get()) {
+                    int newY = drawScaled(gui, s.getLevelName(), cx, y, 0xFFFFFF, pW, true, false);
+                    yield newY + 2;
+                }
+                yield y;
+            }
+            case "folder_name" -> {
+                if (Config.SHOW_FOLDER_NAME.get()) {
+                    int newY = drawScaled(gui, "(" + s.getLevelId() + ")", cx, y, 0x777777, pW, false, true);
+                    yield newY + 8;
+                }
+                yield y + 6;
+            }
+            case "game_mode" -> {
+                if (Config.SHOW_GAME_MODE.get()) {
+                    String modeText = s.isHardcore()
+                            ? Component.translatable("reimagined_world_selection.value.hardcore").getString()
+                            : s.getGameMode().getName().substring(0, 1).toUpperCase() + s.getGameMode().getName().substring(1);
+                    int modeColor = s.isHardcore() ? 0xFFFF0000 : 0xAAAAAA;
+                    yield renderAnimatedLine(gui, Component.translatable("reimagined_world_selection.label.mode").getString(), modeText, cx, y, modeColor, pW, mouseX, mouseY);
+                }
+                yield y;
+            }
+            case "difficulty" -> {
+                if (Config.SHOW_DIFFICULTY.get()) {
+                    Path worldDir = Minecraft.getInstance().getLevelSource().getBaseDir().resolve(s.getLevelId());
+                    WorldInfoHelper.DifficultyInfo difficultyInfo = WorldInfoHelper.readDifficulty(worldDir);
+                    if (difficultyInfo != null) {
+                        DifficultyRenderData data = getDifficultyRenderData(difficultyInfo);
+                        yield renderAnimatedLine(gui, Component.translatable("reimagined_world_selection.label.difficulty").getString(), data.text(), cx, y, data.color(), pW, mouseX, mouseY);
+                    }
+                }
+                yield y;
+            }
+            case "time_played" -> {
+                if (Config.SHOW_TIME_PLAYED.get()) {
+                    Path worldDir = Minecraft.getInstance().getLevelSource().getBaseDir().resolve(s.getLevelId());
+                    long playTime = WorldInfoHelper.readPlayerPlayTime(worldDir);
+                    yield renderAnimatedLine(gui, Component.translatable("reimagined_world_selection.label.time_played").getString(), formatPlayTime(playTime), cx, y, pW, mouseX, mouseY);
+                }
+                yield y;
+            }
+            case "version" -> {
+                if (Config.SHOW_VERSION.get()) {
+                    yield renderAnimatedLine(gui, Component.translatable("reimagined_world_selection.label.version").getString(), s.levelVersion().minecraftVersionName(), cx, y, pW, mouseX, mouseY);
+                }
+                yield y;
+            }
+            case "cheats" -> {
+                if (Config.SHOW_CHEATS.get()) {
+                    Integer redColorObj = ChatFormatting.RED.getColor();
+                    int cheatsColor = redColorObj != null && s.hasCommands() ? redColorObj : 0xAAAAAA;
+                    yield renderAnimatedLine(gui, Component.translatable("reimagined_world_selection.label.commands").getString(), s.hasCommands() ? "ON" : "OFF", cx, y, cheatsColor, pW, mouseX, mouseY);
+                }
+                yield y;
+            }
+            case "last_played" -> {
+                if (Config.SHOW_LAST_PLAYED.get()) {
+                    String dateStr = "(" + dateFormat.format(new Date(s.getLastPlayed())) + ")";
+                    int newY = drawScaled(gui, dateStr, cx, y + 3, 0x777777, pW, false, true);
+                    yield newY + 5;
+                }
+                yield y;
+            }
+            default -> y;
+        };
+    }
 
-        String parsedValue = getCustomLineValue(format, mode, source, worldVars, playerVars, index, s);
+    // ... (остальные методы без изменений - renderCustomAnimatedLine, interpretVar, parsePlaceholders, formatPlayTime, drawScaled, renderAnimatedLine, loadIcon, loadLargeIcon, loadIconInternal, getDifficultyRenderData)
 
+    private int renderCustomAnimatedLine(GuiGraphics gui, Config.CustomLineConfig line,
+                                         Map<String, String> worldVars, Map<String, String> playerVars,
+                                         LevelSummary s, int cx, int y, int maxWidth, int mouseX, int mouseY) {
+        if (line.isEmpty()) return y;
+
+        Map<String, String> selectedVars = line.source() == Config.VariableSource.PLAYER ? playerVars : worldVars;
+        String rawVar = selectedVars.get("var" + line.varIndex());
+        String interpretedVar = interpretVar(rawVar, line.mode());
+        String parsedValue = parsePlaceholders(line.format(), s).replace("%var%", interpretedVar);
+
+        String label = line.label();
         if (!label.isEmpty() && !label.endsWith(" ")) {
             label += ": ";
         }
 
         return renderAnimatedLine(gui, label, parsedValue, cx, y, maxWidth, mouseX, mouseY);
-    }
-
-    private String getCustomLineValue(String format, Config.VarMode mode, Config.VariableSource source, Map<String, String> worldVars, Map<String, String> playerVars, int index, LevelSummary s) {
-        Map<String, String> selectedVars = source == Config.VariableSource.PLAYER ? playerVars : worldVars;
-        String rawVar = selectedVars.get("var" + index);
-        String interpretedVar = interpretVar(rawVar, mode);
-        return parsePlaceholders(format, s).replace("%var%", interpretedVar);
     }
 
     private String interpretVar(@Nullable String rawVar, Config.VarMode mode) {
@@ -450,7 +607,8 @@ public class ReimaginedSelectWorldScreen extends SelectWorldScreen {
         float tw = this.font.width(full);
         float baseScale = tw > maxWidth ? (float) maxWidth / tw : 1.0f;
 
-        boolean hovered = mouseX >= 0 && mouseX <= this.panelWidth && mouseY >= y - 2 && mouseY <= y + this.font.lineHeight + 2;
+        int currentPanelWidth = (int) (this.panelWidth * panelAnimationProgress);
+        boolean hovered = mouseX >= 0 && mouseX <= currentPanelWidth && mouseY >= y - 2 && mouseY <= y + this.font.lineHeight + 2;
 
         String animKey = label + "|" + value + "|" + y;
         float currentAnim = this.sidebarLineAnimations.getOrDefault(animKey, 0.0f);
