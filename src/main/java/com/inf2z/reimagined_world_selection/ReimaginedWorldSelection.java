@@ -16,6 +16,7 @@ import net.neoforged.neoforge.client.gui.IConfigScreenFactory;
 import org.jetbrains.annotations.NotNull;
 
 import javax.annotation.Nonnull;
+import java.util.Objects;
 
 @Mod(value = "reimagined_world_selection", dist = Dist.CLIENT)
 public class ReimaginedWorldSelection {
@@ -37,7 +38,7 @@ public class ReimaginedWorldSelection {
         private static final int BUTTON_HEIGHT = 20;
 
         public ConfigMenuScreen(Screen parent) {
-            super(Component.literal("Reimagined World Selection Config"));
+            super(Component.translatable("screen.reimagined_world_selection.config_menu"));
             this.parent = parent;
         }
 
@@ -51,7 +52,7 @@ public class ReimaginedWorldSelection {
 
             this.addRenderableWidget(
                     Button.builder(
-                            Component.literal("Main Config"),
+                            Component.translatable("screen.reimagined_world_selection.main_config"),
                             btn -> {
                                 if (this.minecraft != null) {
                                     this.minecraft.setScreen(new ConfigurationScreen(savedContainer, this));
@@ -62,7 +63,7 @@ public class ReimaginedWorldSelection {
 
             this.addRenderableWidget(
                     Button.builder(
-                            Component.literal("Custom Info Editor"),
+                            Component.translatable("screen.reimagined_world_selection.custom_info_editor"),
                             btn -> {
                                 if (this.minecraft != null) {
                                     this.minecraft.setScreen(new CustomLinesScreen(this));
@@ -73,7 +74,7 @@ public class ReimaginedWorldSelection {
 
             this.addRenderableWidget(
                     Button.builder(
-                            Component.literal("Info Order Editor"),
+                            Component.translatable("screen.reimagined_world_selection.info_order_editor"),
                             btn -> {
                                 if (this.minecraft != null) {
                                     this.minecraft.setScreen(new PanelOrderScreen(this));
@@ -86,7 +87,7 @@ public class ReimaginedWorldSelection {
                     Button.builder(
                             Component.translatable("gui.done"),
                             btn -> this.onClose()
-                    ).bounds(this.width / 2 - BUTTON_WIDTH / 2, this.height - 25, BUTTON_WIDTH, BUTTON_HEIGHT).build()
+                    ).bounds(this.width / 2 - BUTTON_WIDTH / 2, this.height - 26, BUTTON_WIDTH, BUTTON_HEIGHT).build()
             );
         }
 
@@ -104,11 +105,14 @@ public class ReimaginedWorldSelection {
         }
 
         private class DummyList extends ObjectSelectionList<DummyList.DummyEntry> {
+            private static final int TOP_Y = 33;
+            private static final int BOTTOM_OFFSET = 33;
+
             public DummyList() {
-                super(ConfigMenuScreen.this.minecraft,
+                super(Objects.requireNonNull(ConfigMenuScreen.this.minecraft),
                         ConfigMenuScreen.this.width,
-                        ConfigMenuScreen.this.height - 61,
-                        32,
+                        ConfigMenuScreen.this.height - BOTTOM_OFFSET - TOP_Y,
+                        TOP_Y,
                         20);
             }
 

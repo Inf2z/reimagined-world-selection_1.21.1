@@ -1,5 +1,6 @@
 package com.inf2z.reimagined_world_selection;
 
+import net.minecraft.network.chat.Component;
 import net.neoforged.neoforge.common.ModConfigSpec;
 import java.util.ArrayList;
 import java.util.List;
@@ -33,7 +34,7 @@ public class Config {
     public enum VarMode { BOOLEAN, ON_OFF, VALUE }
     public enum TimeFormat { MINUTES, HOURS, DAYS, WEEKS, MONTHS, YEARS }
     public enum VariableSource { WORLD, PLAYER }
-    public enum PanelBehaviour { DYNAMIC, STATIC }
+    public enum PanelBehaviour { DYNAMIC, STATIC, MIXED }
 
     static {
         ModConfigSpec.Builder builder = new ModConfigSpec.Builder();
@@ -50,8 +51,8 @@ public class Config {
                 .defineInRange("panel_alpha", 102, 0, 255);
 
         PANEL_BEHAVIOUR = builder
-                .comment("DYNAMIC (with toggle button), STATIC (always visible)")
-                .defineEnum("panel_behaviour", PanelBehaviour.DYNAMIC);
+                .comment("STATIC - always visible, DYNAMIC - can be hidden, MIXED - visible only if world selected")
+                .defineEnum("panel_behaviour", PanelBehaviour.MIXED);
 
         builder.pop();
 
@@ -84,11 +85,11 @@ public class Config {
         builder.push("internal");
 
         CUSTOM_LINES = builder
-                .comment("PLEASE DO NOT USE INTERNAL EDITORS!")
+                .comment("!PLEASE USE REGULAR EDITORS, DO NOT USE INTERNAL!")
                 .defineList("custom_lines", new ArrayList<>(), obj -> obj instanceof String);
 
         PANEL_ORDER = builder
-                .comment("PLEASE DO NOT USE INTERNAL EDITORS!")
+                .comment("!PLEASE USE REGULAR EDITORS, DO NOT USE INTERNAL!")
                 .defineList("panel_order", new ArrayList<>(), obj -> obj instanceof String);
 
         builder.pop();

@@ -18,7 +18,7 @@ public class CustomLinesScreen extends Screen {
     private CustomLinesList linesList;
 
     public CustomLinesScreen(Screen parent) {
-        super(Component.literal("Custom Lines Manager"));
+        super(Component.translatable("screen.reimagined_world_selection.custom_lines_manager"));
         this.parent = parent;
     }
 
@@ -36,7 +36,7 @@ public class CustomLinesScreen extends Screen {
         int startX = (this.width - totalWidth) / 2;
 
         this.addRenderableWidget(
-                Button.builder(Component.literal("+ Add Line"), btn -> addNewLine())
+                Button.builder(Component.translatable("screen.reimagined_world_selection.add_line"), btn -> addNewLine())
                         .bounds(startX, this.height - 26, buttonWidth, 20)
                         .build()
         );
@@ -64,7 +64,7 @@ public class CustomLinesScreen extends Screen {
 
         if (this.linesList.children().isEmpty()) {
             gui.drawCenteredString(this.font,
-                    Component.literal("No custom lines. Click '+ Add Line' to create one!"),
+                    Component.translatable("screen.reimagined_world_selection.no_custom_lines"),
                     this.width / 2, this.height / 2, 0x808080);
         }
     }
@@ -101,11 +101,14 @@ public class CustomLinesScreen extends Screen {
     }
 
     private class CustomLinesList extends ObjectSelectionList<CustomLineEntry> {
+        private static final int TOP_Y = 33;
+        private static final int BOTTOM_OFFSET = 33;
+
         public CustomLinesList(Minecraft minecraft) {
             super(minecraft,
                     CustomLinesScreen.this.width,
-                    CustomLinesScreen.this.height - 61,
-                    32,
+                    CustomLinesScreen.this.height - BOTTOM_OFFSET - TOP_Y,
+                    TOP_Y,
                     76);
             reload();
         }
@@ -161,28 +164,28 @@ public class CustomLinesScreen extends Screen {
                 } catch (IllegalArgumentException ignored) {}
             }
 
-            this.labelBox = new EditBox(CustomLinesScreen.this.font, 0, 0, 80, 18, Component.literal("Label"));
+            this.labelBox = new EditBox(CustomLinesScreen.this.font, 0, 0, 80, 18, Component.translatable("screen.reimagined_world_selection.label"));
             this.labelBox.setValue(label);
             this.labelBox.setMaxLength(100);
             this.labelBox.setResponder(s -> saveChanges());
 
-            this.formatBox = new EditBox(CustomLinesScreen.this.font, 0, 0, 80, 18, Component.literal("Format"));
+            this.formatBox = new EditBox(CustomLinesScreen.this.font, 0, 0, 80, 18, Component.translatable("screen.reimagined_world_selection.format"));
             this.formatBox.setValue(format);
             this.formatBox.setMaxLength(200);
             this.formatBox.setResponder(s -> saveChanges());
 
             this.modeButton = Button.builder(
-                    Component.literal("Mode: " + this.currentMode.name()),
+                    Component.translatable("screen.reimagined_world_selection.mode", this.currentMode.name()),
                     btn -> cycleMode()
             ).bounds(0, 0, 75, 18).build();
 
             this.sourceButton = Button.builder(
-                    Component.literal("Src: " + this.currentSource.name()),
+                    Component.translatable("screen.reimagined_world_selection.source", this.currentSource.name()),
                     btn -> cycleSource()
             ).bounds(0, 0, 75, 18).build();
 
             this.deleteButton = Button.builder(
-                    Component.literal("Delete"),
+                    Component.translatable("screen.reimagined_world_selection.delete"),
                     btn -> deleteLine()
             ).bounds(0, 0, 75, 18).build();
         }
@@ -193,7 +196,7 @@ public class CustomLinesScreen extends Screen {
                 case BOOLEAN -> Config.VarMode.ON_OFF;
                 case ON_OFF -> Config.VarMode.VALUE;
             };
-            this.modeButton.setMessage(Component.literal("Mode: " + this.currentMode.name()));
+            this.modeButton.setMessage(Component.translatable("screen.reimagined_world_selection.mode", this.currentMode.name()));
             saveChanges();
         }
 
@@ -201,7 +204,7 @@ public class CustomLinesScreen extends Screen {
             this.currentSource = this.currentSource == Config.VariableSource.WORLD
                     ? Config.VariableSource.PLAYER
                     : Config.VariableSource.WORLD;
-            this.sourceButton.setMessage(Component.literal("Src: " + this.currentSource.name()));
+            this.sourceButton.setMessage(Component.translatable("screen.reimagined_world_selection.source", this.currentSource.name()));
             saveChanges();
         }
 
@@ -232,12 +235,12 @@ public class CustomLinesScreen extends Screen {
 
             gui.drawString(CustomLinesScreen.this.font, "#" + (index + 1), left + 4, top + yOffset + 1, 0xFFFFFF);
 
-            gui.drawString(CustomLinesScreen.this.font, "Label:", left + 20, top + yOffset + 1, 0xAAAAAA);
+            gui.drawString(CustomLinesScreen.this.font, Component.translatable("screen.reimagined_world_selection.label").getString(), left + 20, top + yOffset + 1, 0xAAAAAA);
             this.labelBox.setX(left + 58);
             this.labelBox.setY(top + yOffset);
             this.labelBox.render(gui, mouseX, mouseY, partialTick);
 
-            gui.drawString(CustomLinesScreen.this.font, "Format:", left + 20, top + yOffset + 23, 0xAAAAAA);
+            gui.drawString(CustomLinesScreen.this.font, Component.translatable("screen.reimagined_world_selection.format").getString(), left + 20, top + yOffset + 23, 0xAAAAAA);
             this.formatBox.setX(left + 58);
             this.formatBox.setY(top + yOffset + 22);
             this.formatBox.render(gui, mouseX, mouseY, partialTick);

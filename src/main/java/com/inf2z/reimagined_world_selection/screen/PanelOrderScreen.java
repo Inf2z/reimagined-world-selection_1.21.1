@@ -11,14 +11,16 @@ import net.minecraft.util.Mth;
 
 import javax.annotation.Nonnull;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 public class PanelOrderScreen extends Screen {
     private final Screen parent;
     private PanelElementsList elementsList;
 
     public PanelOrderScreen(Screen parent) {
-        super(Component.literal("Panel Order Editor"));
+        super(Component.translatable("screen.reimagined_world_selection.panel_order_editor"));
         this.parent = parent;
     }
 
@@ -35,7 +37,7 @@ public class PanelOrderScreen extends Screen {
         int startX = this.width / 2 - (buttonWidth * 2 + spacing) / 2;
 
         this.addRenderableWidget(
-                Button.builder(Component.literal("Reset"), btn -> resetOrder())
+                Button.builder(Component.translatable("screen.reimagined_world_selection.reset"), btn -> resetOrder())
                         .bounds(startX, this.height - 26, buttonWidth, 20)
                         .build()
         );
@@ -72,7 +74,7 @@ public class PanelOrderScreen extends Screen {
         super.render(gui, mouseX, mouseY, partialTick);
 
         gui.drawCenteredString(this.font, this.title, this.width / 2, 8, 0xFFFFFF);
-        gui.drawCenteredString(this.font, Component.literal("Drag elements to reorder"),
+        gui.drawCenteredString(this.font, Component.translatable("screen.reimagined_world_selection.drag_to_reorder"),
                 this.width / 2, 22, 0x808080);
     }
 
@@ -84,6 +86,9 @@ public class PanelOrderScreen extends Screen {
     }
 
     private class PanelElementsList extends ObjectSelectionList<PanelElementEntry> {
+        private static final int TOP_Y = 33;
+        private static final int BOTTOM_OFFSET = 33;
+
         private PanelElementEntry dragging;
         private long dragStartTime;
         private final int bottomLimit;
@@ -91,46 +96,70 @@ public class PanelOrderScreen extends Screen {
         public PanelElementsList(Minecraft minecraft) {
             super(minecraft,
                     PanelOrderScreen.this.width,
-                    PanelOrderScreen.this.height - 61,
-                    32,
+                    PanelOrderScreen.this.height - BOTTOM_OFFSET - TOP_Y,
+                    TOP_Y,
                     28);
-            this.bottomLimit = PanelOrderScreen.this.height - 35;
+            this.bottomLimit = PanelOrderScreen.this.height - BOTTOM_OFFSET;
             reload();
         }
 
         public void reload() {
             this.clearEntries();
 
-            List<? extends String> order = Config.PANEL_ORDER.get();
-            if (order.isEmpty()) {
-                order = getDefaultOrder();
-            }
+            List<? extends String> savedOrder = Config.PANEL_ORDER.get();
+            List<Config.CustomLineConfig> customLines = Config.getCustomLines();
 
-            for (String id : order) {
-                PanelElementEntry entry = createEntryFromId(id);
-                if (entry != null) {
-                    this.addEntry(entry);
+            Set<String> addedIds = new HashSet<>();
+
+            for (String id : savedOrder) {
+                if (id.startsWith("custom_")) {
+                    try {
+                        int customIndex = Integer.parseInt(id.substring(7));
+                        if (customIndex >= 0 && customIndex < customLines.size()) {
+                            Config.CustomLineConfig line = customLines.get(customIndex);
+                            this.addEntry(new PanelElementEntry(id, Component.translatable("screen.reimagined_world_selection.custom_prefix", line.label()).getString(), null));
+                            addedIds.add(id);
+                        }
+                    } catch (NumberFormatException ignored) {}
+                } else {
+                    PanelElementEntry entry = createEntryFromId(id);
+                    if (entry != null) {
+                        this.addEntry(entry);
+                        addedIds.add(id);
+                    }
                 }
             }
 
-            List<Config.CustomLineConfig> customLines = Config.getCustomLines();
+            for (String defaultId : getDefaultOrder()) {
+                if (!addedIds.contains(defaultId)) {
+                    PanelElementEntry entry = createEntryFromId(defaultId);
+                    if (entry != null) {
+                        this.addEntry(entry);
+                        addedIds.add(defaultId);
+                    }
+                }
+            }
+
             for (int i = 0; i < customLines.size(); i++) {
-                Config.CustomLineConfig line = customLines.get(i);
-                this.addEntry(new PanelElementEntry("custom_" + i, "Custom: " + line.label(), null));
+                String customId = "custom_" + i;
+                if (!addedIds.contains(customId)) {
+                    Config.CustomLineConfig line = customLines.get(i);
+                    this.addEntry(new PanelElementEntry(customId, Component.translatable("screen.reimagined_world_selection.custom_prefix", line.label()).getString(), null));
+                }
             }
         }
 
         private PanelElementEntry createEntryFromId(String id) {
             return switch (id) {
-                case "large_icon" -> new PanelElementEntry(id, "Large Icon", Config.SHOW_LARGE_ICON);
-                case "world_name" -> new PanelElementEntry(id, "World Name", Config.SHOW_WORLD_NAME);
-                case "folder_name" -> new PanelElementEntry(id, "Folder Name", Config.SHOW_FOLDER_NAME);
-                case "game_mode" -> new PanelElementEntry(id, "Game Mode", Config.SHOW_GAME_MODE);
-                case "difficulty" -> new PanelElementEntry(id, "Difficulty", Config.SHOW_DIFFICULTY);
-                case "time_played" -> new PanelElementEntry(id, "Time Played", Config.SHOW_TIME_PLAYED);
-                case "version" -> new PanelElementEntry(id, "Version", Config.SHOW_VERSION);
-                case "cheats" -> new PanelElementEntry(id, "Commands", Config.SHOW_CHEATS);
-                case "last_played" -> new PanelElementEntry(id, "Last Played", Config.SHOW_LAST_PLAYED);
+                case "large_icon" -> new PanelElementEntry(id, Component.translatable("info_order.reimagined_world_selection.large_icon").getString(), Config.SHOW_LARGE_ICON);
+                case "world_name" -> new PanelElementEntry(id, Component.translatable("info_order.reimagined_world_selection.world_name").getString(), Config.SHOW_WORLD_NAME);
+                case "folder_name" -> new PanelElementEntry(id, Component.translatable("info_order.reimagined_world_selection.folder_name").getString(), Config.SHOW_FOLDER_NAME);
+                case "game_mode" -> new PanelElementEntry(id, Component.translatable("info_order.reimagined_world_selection.game_mode").getString(), Config.SHOW_GAME_MODE);
+                case "difficulty" -> new PanelElementEntry(id, Component.translatable("info_order.reimagined_world_selection.difficulty").getString(), Config.SHOW_DIFFICULTY);
+                case "time_played" -> new PanelElementEntry(id, Component.translatable("info_order.reimagined_world_selection.time_played").getString(), Config.SHOW_TIME_PLAYED);
+                case "version" -> new PanelElementEntry(id, Component.translatable("info_order.reimagined_world_selection.version").getString(), Config.SHOW_VERSION);
+                case "cheats" -> new PanelElementEntry(id, Component.translatable("info_order.reimagined_world_selection.cheats").getString(), Config.SHOW_CHEATS);
+                case "last_played" -> new PanelElementEntry(id, Component.translatable("info_order.reimagined_world_selection.last_played").getString(), Config.SHOW_LAST_PLAYED);
                 default -> null;
             };
         }
@@ -213,9 +242,7 @@ public class PanelOrderScreen extends Screen {
         private void saveOrder() {
             List<String> newOrder = new ArrayList<>();
             for (PanelElementEntry entry : this.children()) {
-                if (!entry.id.startsWith("custom_")) {
-                    newOrder.add(entry.id);
-                }
+                newOrder.add(entry.id);
             }
             Config.PANEL_ORDER.set(newOrder);
             Config.SPEC.save();
@@ -286,7 +313,7 @@ public class PanelOrderScreen extends Screen {
             gui.drawString(PanelOrderScreen.this.font, name, left + 20, top + 8, textColor);
 
             if (configValue != null) {
-                String status = enabled ? "Visible" : "Hidden";
+                String status = enabled ? Component.translatable("screen.reimagined_world_selection.visible").getString() : Component.translatable("screen.reimagined_world_selection.hidden").getString();
                 int statusColor = enabled ? 0x55FF55 : 0xFF5555;
                 if (isDragging) {
                     statusColor = enabled ? 0xAAFF55 : 0xFFAA55;

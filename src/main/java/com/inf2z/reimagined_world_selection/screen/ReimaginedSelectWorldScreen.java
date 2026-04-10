@@ -23,6 +23,7 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.FormattedCharSequence;
 import net.minecraft.util.Mth;
 import net.minecraft.world.level.storage.LevelSummary;
+import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -78,10 +79,22 @@ public class ReimaginedSelectWorldScreen extends SelectWorldScreen {
         return Config.PANEL_BEHAVIOUR.get() == Config.PanelBehaviour.DYNAMIC;
     }
 
+    private boolean isPanelMixed() {
+        return Config.PANEL_BEHAVIOUR.get() == Config.PanelBehaviour.MIXED;
+    }
+
+    private boolean hasWorldSelected() {
+        return this.cachedList != null && this.cachedList.getSelected() instanceof WorldSelectionList.WorldListEntry;
+    }
+
     private void applyReimaginedLayout() {
         this.panelWidth = (int) (this.width * Config.PANEL_WIDTH_RATIO.get());
 
-        if (!isPanelDynamic()) {
+        if (isPanelDynamic()) {
+        } else if (isPanelMixed()) {
+            panelVisible = hasWorldSelected();
+            panelAnimationProgress = panelVisible ? 1.0f : 0.0f;
+        } else {
             panelVisible = true;
             panelAnimationProgress = 1.0f;
         }
@@ -236,7 +249,14 @@ public class ReimaginedSelectWorldScreen extends SelectWorldScreen {
 
     @Override
     public void render(GuiGraphics gui, int mouseX, int mouseY, float tick) {
-        if (isPanelDynamic()) {
+        if (isPanelMixed()) {
+            boolean shouldShow = hasWorldSelected();
+            if (panelVisible != shouldShow) {
+                panelVisible = shouldShow;
+            }
+        }
+
+        if (isPanelDynamic() || isPanelMixed()) {
             float targetProgress = panelVisible ? 1.0f : 0.0f;
             float animationSpeed = 0.15f;
 
@@ -334,12 +354,25 @@ public class ReimaginedSelectWorldScreen extends SelectWorldScreen {
         }
 
         List<Config.CustomLineConfig> customLines = Config.getCustomLines();
-        y += customLines.size() * 12;
+        for (String orderId : order) {
+            if (orderId.startsWith("custom_")) {
+                y += 12;
+            }
+        }
+
+        int customsInOrder = (int) order.stream().filter(s -> s.startsWith("custom_")).count();
+        int extraCustoms = customLines.size() - customsInOrder;
+        if (extraCustoms > 0) {
+            y += extraCustoms * 12;
+        }
 
         return y + 10;
     }
 
     private int addHeightForElement(String id, int y, int pW) {
+        if (id.startsWith("custom_")) {
+            return y + 12;
+        }
         return switch (id) {
             case "large_icon" -> Config.SHOW_LARGE_ICON.get() ? y + (pW * 9 / 16) + 12 : y;
             case "world_name" -> Config.SHOW_WORLD_NAME.get() ? y + this.font.lineHeight + 4 : y;
@@ -390,18 +423,32 @@ public class ReimaginedSelectWorldScreen extends SelectWorldScreen {
             order = getDefaultOrder();
         }
 
-        for (String id : order) {
-            y = renderElement(gui, id, s, cx, y, pW, mouseX, mouseY);
-        }
-
-        y += 6;
-
+        List<Config.CustomLineConfig> customLines = Config.getCustomLines();
         Map<String, String> worldVars = WorldSelectionAPI.getWorldVariables(s.getLevelId());
         Map<String, String> playerVars = WorldSelectionAPI.getPlayerVariables(s.getLevelId());
 
-        List<Config.CustomLineConfig> customLines = Config.getCustomLines();
-        for (Config.CustomLineConfig line : customLines) {
-            y = renderCustomAnimatedLine(gui, line, worldVars, playerVars, s, cx, y, pW, mouseX, mouseY);
+        Set<Integer> renderedCustomIndices = new HashSet<>();
+
+        for (String id : order) {
+            if (id.startsWith("custom_")) {
+                try {
+                    int customIndex = Integer.parseInt(id.substring(7));
+                    if (customIndex >= 0 && customIndex < customLines.size()) {
+                        Config.CustomLineConfig line = customLines.get(customIndex);
+                        y = renderCustomAnimatedLine(gui, line, worldVars, playerVars, s, cx, y, pW, mouseX, mouseY);
+                        renderedCustomIndices.add(customIndex);
+                    }
+                } catch (NumberFormatException ignored) {}
+            } else {
+                y = renderElement(gui, id, s, cx, y, pW, mouseX, mouseY);
+            }
+        }
+
+        for (int i = 0; i < customLines.size(); i++) {
+            if (!renderedCustomIndices.contains(i)) {
+                Config.CustomLineConfig line = customLines.get(i);
+                y = renderCustomAnimatedLine(gui, line, worldVars, playerVars, s, cx, y, pW, mouseX, mouseY);
+            }
         }
 
         gui.disableScissor();
@@ -433,10 +480,23 @@ public class ReimaginedSelectWorldScreen extends SelectWorldScreen {
             }
             case "game_mode" -> {
                 if (Config.SHOW_GAME_MODE.get()) {
-                    String modeText = s.isHardcore()
-                            ? Component.translatable("reimagined_world_selection.value.hardcore").getString()
-                            : s.getGameMode().getName().substring(0, 1).toUpperCase() + s.getGameMode().getName().substring(1);
-                    int modeColor = s.isHardcore() ? 0xFFFF0000 : 0xAAAAAA;
+                    String modeText;
+                    int modeColor;
+
+                    if (s.isHardcore()) {
+                        modeText = Component.translatable("reimagined_world_selection.value.hardcore").getString();
+                        modeColor = 0xFFFF0000;
+                    } else {
+                        String modeKey = switch (s.getGameMode()) {
+                            case SURVIVAL -> "reimagined_world_selection.value.survival";
+                            case CREATIVE -> "reimagined_world_selection.value.creative";
+                            case ADVENTURE -> "reimagined_world_selection.value.adventure";
+                            case SPECTATOR -> "reimagined_world_selection.value.spectator";
+                        };
+                        modeText = Component.translatable(modeKey).getString();
+                        modeColor = 0xAAAAAA;
+                    }
+
                     yield renderAnimatedLine(gui, Component.translatable("reimagined_world_selection.label.mode").getString(), modeText, cx, y, modeColor, pW, mouseX, mouseY);
                 }
                 yield y;
@@ -470,7 +530,12 @@ public class ReimaginedSelectWorldScreen extends SelectWorldScreen {
                 if (Config.SHOW_CHEATS.get()) {
                     Integer redColorObj = ChatFormatting.RED.getColor();
                     int cheatsColor = redColorObj != null && s.hasCommands() ? redColorObj : 0xAAAAAA;
-                    yield renderAnimatedLine(gui, Component.translatable("reimagined_world_selection.label.commands").getString(), s.hasCommands() ? "ON" : "OFF", cx, y, cheatsColor, pW, mouseX, mouseY);
+                    yield renderAnimatedLine(gui,
+                            Component.translatable("reimagined_world_selection.label.commands").getString(),
+                            s.hasCommands()
+                                    ? Component.translatable("reimagined_world_selection.value.on").getString()
+                                    : Component.translatable("reimagined_world_selection.value.off").getString(),
+                            cx, y, cheatsColor, pW, mouseX, mouseY);
                 }
                 yield y;
             }
@@ -519,9 +584,9 @@ public class ReimaginedSelectWorldScreen extends SelectWorldScreen {
         }
 
         if (mode == Config.VarMode.BOOLEAN) {
-            return numericValue >= 1 ? "True" : "False";
+            return numericValue >= 1 ? Component.translatable("reimagined_world_selection.value.true").getString() : Component.translatable("reimagined_world_selection.value.false").getString();
         } else if (mode == Config.VarMode.ON_OFF) {
-            return numericValue >= 1 ? "ON" : "OFF";
+            return numericValue >= 1 ? Component.translatable("reimagined_world_selection.value.on").getString() : Component.translatable("reimagined_world_selection.value.off").getString();
         }
 
         return rawVar == null ? "" : rawVar;
@@ -530,15 +595,35 @@ public class ReimaginedSelectWorldScreen extends SelectWorldScreen {
     private String parsePlaceholders(String text, LevelSummary s) {
         if (text.isEmpty()) return "";
 
-        String modeText = s.isHardcore() ? Component.translatable("reimagined_world_selection.value.hardcore").getString() : s.getGameMode().getName();
+        String modeText = getString(s);
 
         return text
                 .replace("%name%", s.getLevelName())
                 .replace("%id%", s.getLevelId())
                 .replace("%mode%", modeText)
                 .replace("%version%", s.levelVersion().minecraftVersionName())
-                .replace("%cheats%", s.hasCommands() ? "ON" : "OFF")
-                .replace("%hardcore%", s.isHardcore() ? "Yes" : "No");
+                .replace("%cheats%", s.hasCommands()
+                        ? Component.translatable("reimagined_world_selection.value.on").getString()
+                        : Component.translatable("reimagined_world_selection.value.off").getString())
+                .replace("%hardcore%", s.isHardcore()
+                        ? Component.translatable("reimagined_world_selection.value.yes").getString()
+                        : Component.translatable("reimagined_world_selection.value.no").getString());
+    }
+
+    private static @NotNull String getString(LevelSummary s) {
+        String modeText;
+        if (s.isHardcore()) {
+            modeText = Component.translatable("reimagined_world_selection.value.hardcore").getString();
+        } else {
+            String modeKey = switch (s.getGameMode()) {
+                case SURVIVAL -> "reimagined_world_selection.value.survival";
+                case CREATIVE -> "reimagined_world_selection.value.creative";
+                case ADVENTURE -> "reimagined_world_selection.value.adventure";
+                case SPECTATOR -> "reimagined_world_selection.value.spectator";
+            };
+            modeText = Component.translatable(modeKey).getString();
+        }
+        return modeText;
     }
 
     private String formatPlayTime(long ticks) {
@@ -737,4 +822,3 @@ public class ReimaginedSelectWorldScreen extends SelectWorldScreen {
 
     private record DifficultyRenderData(String text, int color) {}
 }
-

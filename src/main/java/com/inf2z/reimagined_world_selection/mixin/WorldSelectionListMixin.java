@@ -14,7 +14,9 @@ public abstract class WorldSelectionListMixin extends AbstractSelectionList {
 
     @Override
     public int getRowWidth() {
-        return Math.min(220, this.width - 10);
+        int availableWidth = this.width - 40;
+        int maxWidth = 400;
+        return Math.min(availableWidth, maxWidth);
     }
 
     @Override
