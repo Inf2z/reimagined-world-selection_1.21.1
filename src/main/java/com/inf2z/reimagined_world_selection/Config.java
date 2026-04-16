@@ -1,6 +1,5 @@
 package com.inf2z.reimagined_world_selection;
 
-import net.minecraft.network.chat.Component;
 import net.neoforged.neoforge.common.ModConfigSpec;
 import java.util.ArrayList;
 import java.util.List;
@@ -120,6 +119,34 @@ public class Config {
             }
 
             return new CustomLineConfig(label, format, mode, source, index + 1);
+        }
+
+        public int lineNumber() {
+            return varIndex;
+        }
+
+        public String getLangLabelPlaceholder() {
+            return "%var" + lineNumber() + ".lang.label%";
+        }
+
+        public String getLangFormatPlaceholder() {
+            return "%var" + lineNumber() + ".lang.format%";
+        }
+
+        public String getLangLabelKey() {
+            return "rws.var" + lineNumber() + ".label";
+        }
+
+        public String getLangFormatKey() {
+            return "rws.var" + lineNumber() + ".format";
+        }
+
+        public boolean hasLangLabel() {
+            return label.contains(getLangLabelPlaceholder());
+        }
+
+        public boolean hasLangFormat() {
+            return format.contains(getLangFormatPlaceholder());
         }
 
         public boolean isEmpty() {

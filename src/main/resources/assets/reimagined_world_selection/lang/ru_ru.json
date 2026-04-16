@@ -66,7 +66,7 @@
   "screen.reimagined_world_selection.custom_lines_manager": "Управление строками",
   "screen.reimagined_world_selection.add_line": "+ Добавить строку",
   "screen.reimagined_world_selection.no_custom_lines": "Нет своей информации. Нажмите '+ Добавить строку' чтобы создать!",
-  "screen.reimagined_world_selection.label": "Название:",
+  "screen.reimagined_world_selection.label": "Имя:",
   "screen.reimagined_world_selection.format": "Формат:",
   "screen.reimagined_world_selection.mode": "Режим: %s",
   "screen.reimagined_world_selection.source": "Тип: %s",
@@ -87,5 +87,8 @@
   "info_order.reimagined_world_selection.time_played": "Всего сыграно",
   "info_order.reimagined_world_selection.version": "Версия",
   "info_order.reimagined_world_selection.cheats": "Статус команд",
-  "info_order.reimagined_world_selection.last_played": "Последняя игра"
+  "info_order.reimagined_world_selection.last_played": "Последняя игра",
+
+  "reimagined_world_selection.delete_multiple": "Удалить %s миров?",
+  "reimagined_world_selection.delete_confirm_title": "Вы точно уверены что хотите удалить все эти миры?"
 }

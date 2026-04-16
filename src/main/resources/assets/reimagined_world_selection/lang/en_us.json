@@ -87,5 +87,8 @@
   "info_order.reimagined_world_selection.time_played": "Time Played",
   "info_order.reimagined_world_selection.version": "Version",
   "info_order.reimagined_world_selection.cheats": "Commands",
-  "info_order.reimagined_world_selection.last_played": "Last Played"
+  "info_order.reimagined_world_selection.last_played": "Last Played",
+
+  "reimagined_world_selection.delete_multiple": "Delete %s worlds?",
+  "reimagined_world_selection.delete_confirm_title": "Are you sure you want to delete these worlds?"
 }
