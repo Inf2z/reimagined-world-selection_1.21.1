@@ -1,4 +1,4 @@
-[![Available on Curseforge](https://cdn.jsdelivr.net/npm/@intergrav/devins-badges@3/assets/compact/available/curseforge_46h.png)](https://www.curseforge.com/minecraft/mc-mods/reimagined-world-selection) [![Available on Modrinth](https://cdn.jsdelivr.net/npm/@intergrav/devins-badges@3/assets/compact/available/modrinth_46h.png)](https://modrinth.com/mod/reimagined-world-selection)
+[![Available on Curseforge](https://cdn.jsdelivr.net/npm/@intergrav/devins-badges@3/assets/compact/available/curseforge_46h.png)](https://www.curseforge.com/minecraft/mc-mods/reimagined-world-select) [![Available on Modrinth](https://cdn.jsdelivr.net/npm/@intergrav/devins-badges@3/assets/compact/available/modrinth_46h.png)](https://modrinth.com/mod/reimagined-world-select)
 
 ***
 
@@ -14,7 +14,7 @@ Support For: Custom Info and Custom Icons
 
 ## Wiki:
 
-If you want work with custom info, or know how does custom large icons work, check out mod **[wiki](https://github.com/Inf2z/reimagined-world-selection/wiki)**!
+If you want work with custom info, or know how does custom large icons work, check out mod **[wiki](https://github.com/Inf2z/reimagined-world-select/wiki)**!
 
 ## Compatibility:
 
@@ -23,7 +23,7 @@ Please report if you find any issues!
 ## Translation:
 
 At the moment RWS have translation for English and Russian.  
-If you want to help translate this mod in your language, contribute translation in [Github](https://github.com/Inf2z/reimagined-world-selection)!
+If you want to help translate this mod in your language, contribute translation in [Github](https://github.com/Inf2z/reimagined-world-select)!
 
 ## Credits:
 
