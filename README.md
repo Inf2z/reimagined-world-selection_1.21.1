@@ -2,7 +2,7 @@
 
 ***
 
-_A brand new look for the World Selection Screen!_
+_A brand new look for the World Select Screen!_
 
 ## Features:
 
