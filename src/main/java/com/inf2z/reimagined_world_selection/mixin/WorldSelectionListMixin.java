@@ -1,14 +1,22 @@
 package com.inf2z.reimagined_world_selection.mixin;
 
+import com.inf2z.reimagined_world_selection.Config;
+import com.inf2z.reimagined_world_selection.util.CreateWorldCompat;
+import com.inf2z.reimagined_world_selection.util.MinecraftCompat;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.AbstractSelectionList;
+import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.gui.screens.worldselection.CreateWorldScreen;
 import net.minecraft.client.gui.screens.worldselection.WorldSelectionList;
 import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.injection.At;
+import org.spongepowered.asm.mixin.injection.Redirect;
 
 @SuppressWarnings("rawtypes")
 @Mixin(WorldSelectionList.class)
 public abstract class WorldSelectionListMixin extends AbstractSelectionList {
 
-    protected WorldSelectionListMixin(net.minecraft.client.Minecraft mc, int width, int height, int top, int itemHeight) {
+    protected WorldSelectionListMixin(Minecraft mc, int width, int height, int top, int itemHeight) {
         super(mc, width, height, top, itemHeight);
     }
 
@@ -22,5 +30,18 @@ public abstract class WorldSelectionListMixin extends AbstractSelectionList {
     @Override
     protected int getScrollbarPosition() {
         return this.getX() + this.width - 6;
+    }
+
+    @Redirect(
+            method = "loadLevels",
+            at = @At(
+                    value = "INVOKE",
+                    target = "Lnet/minecraft/client/gui/screens/worldselection/CreateWorldScreen;openFresh(Lnet/minecraft/client/Minecraft;Lnet/minecraft/client/gui/screens/Screen;)V"
+            )
+    )
+    private void rws$interceptNoWorldsBehaviour(Minecraft mc, Screen lastScreen) {
+        if (Config.NO_WORLDS_BEHAVIOUR.get() == Config.NoWorldsBehaviour.GENERATE) {
+            MinecraftCompat.runOnMainThread(mc, () -> CreateWorldCompat.openFresh(mc, lastScreen));
+        }
     }
 }

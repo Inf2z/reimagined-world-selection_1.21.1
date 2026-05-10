@@ -3,6 +3,9 @@
   "reimagined_world_selection.configuration.visible_information": "Видимая информация",
   "reimagined_world_selection.configuration.internal": "Внутренние редакторы",
   "reimagined_world_selection.configuration.element_animations": "Анимации",
+  "reimagined_world_selection.configuration.panel_animation_speed": "Скорость появления панели",
+  "reimagined_world_selection.configuration.world_select_animation_speed": "Скорость выбора мира",
+  "reimagined_world_selection.configuration.world_deselect_animation_speed": "Скорость отмены выбора мира",
 
   "reimagined_world_selection.configuration.panel_width_ratio": "Соотношение ширины",
   "reimagined_world_selection.configuration.panel_background_style": "Цвет фона",
@@ -11,6 +14,10 @@
 
   "reimagined_world_selection.configuration.enable_world_hover_animation": "Анимация выбора мира",
   "reimagined_world_selection.configuration.enable_text_hover_animation": "Анимация наведения на текст в панели",
+
+  "reimagined_world_selection.no_worlds": "Миры не найдены. Нажмите 'Создать новый мир' чтобы создать свой первый мир!",
+  "reimagined_world_selection.configuration.no_worlds_behaviour": "Поведение игры при отсутствии миров",
+  "reimagined_world_selection.configuration.no_worlds_behaviour.tooltip": "LIST - показывать пустой список миров, GENERATE - открывать меню создания мира",
 
   "reimagined_world_selection.configuration.show_world_name": "Название мира",
   "reimagined_world_selection.configuration.show_folder_name": "Название папки мира",

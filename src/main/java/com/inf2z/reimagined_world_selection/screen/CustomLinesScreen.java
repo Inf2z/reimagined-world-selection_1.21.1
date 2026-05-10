@@ -1,6 +1,7 @@
 package com.inf2z.reimagined_world_selection.screen;
 
 import com.inf2z.reimagined_world_selection.Config;
+import com.inf2z.reimagined_world_selection.util.GuiCompat;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
@@ -59,11 +60,10 @@ public class CustomLinesScreen extends Screen {
     @Override
     public void render(@Nonnull GuiGraphics gui, int mouseX, int mouseY, float partialTick) {
         super.render(gui, mouseX, mouseY, partialTick);
-
-        gui.drawCenteredString(this.font, this.title, this.width / 2, 8, 0xFFFFFF);
+        GuiCompat.drawCenteredString(gui, this.font, this.title, this.width / 2, 8, 0xFFFFFF);
 
         if (this.linesList.children().isEmpty()) {
-            gui.drawCenteredString(this.font,
+            GuiCompat.drawCenteredString(gui, this.font,
                     Component.translatable("screen.reimagined_world_selection.no_custom_lines"),
                     this.width / 2, this.height / 2, 0x808080);
         }
@@ -71,32 +71,24 @@ public class CustomLinesScreen extends Screen {
 
     @Override
     public void onClose() {
-        if (this.minecraft != null) {
-            this.minecraft.setScreen(this.parent);
-        }
+        if (this.minecraft != null) this.minecraft.setScreen(this.parent);
     }
 
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
-        if (this.linesList != null && this.linesList.mouseClicked(mouseX, mouseY, button)) {
-            return true;
-        }
+        if (this.linesList != null && this.linesList.mouseClicked(mouseX, mouseY, button)) return true;
         return super.mouseClicked(mouseX, mouseY, button);
     }
 
     @Override
     public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
-        if (this.linesList != null && this.linesList.keyPressed(keyCode, scanCode, modifiers)) {
-            return true;
-        }
+        if (this.linesList != null && this.linesList.keyPressed(keyCode, scanCode, modifiers)) return true;
         return super.keyPressed(keyCode, scanCode, modifiers);
     }
 
     @Override
     public boolean charTyped(char codePoint, int modifiers) {
-        if (this.linesList != null && this.linesList.charTyped(codePoint, modifiers)) {
-            return true;
-        }
+        if (this.linesList != null && this.linesList.charTyped(codePoint, modifiers)) return true;
         return super.charTyped(codePoint, modifiers);
     }
 
@@ -122,14 +114,10 @@ public class CustomLinesScreen extends Screen {
         }
 
         @Override
-        public int getRowWidth() {
-            return 270;
-        }
+        public int getRowWidth() { return 270; }
 
         @Override
-        protected int getScrollbarPosition() {
-            return this.width / 2 + 145;
-        }
+        protected int getScrollbarPosition() { return this.width / 2 + 145; }
     }
 
     private class CustomLineEntry extends ObjectSelectionList.Entry<CustomLineEntry> {
@@ -147,29 +135,29 @@ public class CustomLinesScreen extends Screen {
             this.index = index;
 
             String[] parts = data.split(";", -1);
-            String label = parts.length > 0 ? parts[0] : "";
+            String label  = parts.length > 0 ? parts[0] : "";
             String format = parts.length > 1 ? parts[1] : "";
 
             this.currentMode = Config.VarMode.VALUE;
             if (parts.length > 2) {
-                try {
-                    this.currentMode = Config.VarMode.valueOf(parts[2].toUpperCase());
-                } catch (IllegalArgumentException ignored) {}
+                try { this.currentMode = Config.VarMode.valueOf(parts[2].toUpperCase()); }
+                catch (IllegalArgumentException ignored) {}
             }
 
             this.currentSource = Config.VariableSource.WORLD;
             if (parts.length > 3) {
-                try {
-                    this.currentSource = Config.VariableSource.valueOf(parts[3].toUpperCase());
-                } catch (IllegalArgumentException ignored) {}
+                try { this.currentSource = Config.VariableSource.valueOf(parts[3].toUpperCase()); }
+                catch (IllegalArgumentException ignored) {}
             }
 
-            this.labelBox = new EditBox(CustomLinesScreen.this.font, 0, 0, 80, 18, Component.translatable("screen.reimagined_world_selection.label"));
+            this.labelBox = new EditBox(CustomLinesScreen.this.font, 0, 0, 80, 18,
+                    Component.translatable("screen.reimagined_world_selection.label"));
             this.labelBox.setValue(label);
             this.labelBox.setMaxLength(100);
             this.labelBox.setResponder(s -> saveChanges());
 
-            this.formatBox = new EditBox(CustomLinesScreen.this.font, 0, 0, 80, 18, Component.translatable("screen.reimagined_world_selection.format"));
+            this.formatBox = new EditBox(CustomLinesScreen.this.font, 0, 0, 80, 18,
+                    Component.translatable("screen.reimagined_world_selection.format"));
             this.formatBox.setValue(format);
             this.formatBox.setMaxLength(200);
             this.formatBox.setResponder(s -> saveChanges());
@@ -192,9 +180,9 @@ public class CustomLinesScreen extends Screen {
 
         private void cycleMode() {
             this.currentMode = switch (this.currentMode) {
-                case VALUE -> Config.VarMode.BOOLEAN;
+                case VALUE   -> Config.VarMode.BOOLEAN;
                 case BOOLEAN -> Config.VarMode.ON_OFF;
-                case ON_OFF -> Config.VarMode.VALUE;
+                case ON_OFF  -> Config.VarMode.VALUE;
             };
             this.modeButton.setMessage(Component.translatable("screen.reimagined_world_selection.mode", this.currentMode.name()));
             saveChanges();
@@ -210,11 +198,7 @@ public class CustomLinesScreen extends Screen {
 
         private void saveChanges() {
             List<String> current = new ArrayList<>(Config.CUSTOM_LINES.get());
-            String newValue = labelBox.getValue() + ";" +
-                    formatBox.getValue() + ";" +
-                    currentMode.name() + ";" +
-                    currentSource.name();
-            current.set(index, newValue);
+            current.set(index, labelBox.getValue() + ";" + formatBox.getValue() + ";" + currentMode.name() + ";" + currentSource.name());
             Config.CUSTOM_LINES.set(current);
             Config.SPEC.save();
         }
@@ -230,52 +214,37 @@ public class CustomLinesScreen extends Screen {
         @Override
         public void render(@Nonnull GuiGraphics gui, int entryIdx, int top, int left, int width, int height,
                            int mouseX, int mouseY, boolean hovered, float partialTick) {
-
             int yOffset = 6;
 
-            gui.drawString(CustomLinesScreen.this.font, "#" + (index + 1), left + 4, top + yOffset + 1, 0xFFFFFF);
+            GuiCompat.drawString(gui, CustomLinesScreen.this.font, "#" + (index + 1), left + 4, top + yOffset + 1, 0xFFFFFF);
 
-            gui.drawString(CustomLinesScreen.this.font, Component.translatable("screen.reimagined_world_selection.label").getString(), left + 20, top + yOffset + 1, 0xAAAAAA);
+            GuiCompat.drawString(gui, CustomLinesScreen.this.font,
+                    Component.translatable("screen.reimagined_world_selection.label").getString(),
+                    left + 20, top + yOffset + 1, 0xAAAAAA);
             this.labelBox.setX(left + 58);
             this.labelBox.setY(top + yOffset);
             this.labelBox.render(gui, mouseX, mouseY, partialTick);
 
-            gui.drawString(CustomLinesScreen.this.font, Component.translatable("screen.reimagined_world_selection.format").getString(), left + 20, top + yOffset + 23, 0xAAAAAA);
+            GuiCompat.drawString(gui, CustomLinesScreen.this.font,
+                    Component.translatable("screen.reimagined_world_selection.format").getString(),
+                    left + 20, top + yOffset + 23, 0xAAAAAA);
             this.formatBox.setX(left + 58);
             this.formatBox.setY(top + yOffset + 22);
             this.formatBox.render(gui, mouseX, mouseY, partialTick);
 
             int buttonX = left + 188;
-
-            this.modeButton.setX(buttonX);
-            this.modeButton.setY(top + yOffset);
-            this.modeButton.render(gui, mouseX, mouseY, partialTick);
-
-            this.sourceButton.setX(buttonX);
-            this.sourceButton.setY(top + yOffset + 22);
-            this.sourceButton.render(gui, mouseX, mouseY, partialTick);
-
-            this.deleteButton.setX(buttonX);
-            this.deleteButton.setY(top + yOffset + 44);
-            this.deleteButton.render(gui, mouseX, mouseY, partialTick);
+            this.modeButton.setX(buttonX);   this.modeButton.setY(top + yOffset);      this.modeButton.render(gui, mouseX, mouseY, partialTick);
+            this.sourceButton.setX(buttonX); this.sourceButton.setY(top + yOffset + 22); this.sourceButton.render(gui, mouseX, mouseY, partialTick);
+            this.deleteButton.setX(buttonX); this.deleteButton.setY(top + yOffset + 44); this.deleteButton.render(gui, mouseX, mouseY, partialTick);
         }
 
         @Override
         public boolean mouseClicked(double mouseX, double mouseY, int button) {
-            if (this.labelBox.mouseClicked(mouseX, mouseY, button)) {
-                this.labelBox.setFocused(true);
-                this.formatBox.setFocused(false);
-                return true;
-            }
-            if (this.formatBox.mouseClicked(mouseX, mouseY, button)) {
-                this.formatBox.setFocused(true);
-                this.labelBox.setFocused(false);
-                return true;
-            }
-            if (this.modeButton.mouseClicked(mouseX, mouseY, button)) return true;
+            if (this.labelBox.mouseClicked(mouseX, mouseY, button))  { this.labelBox.setFocused(true);  this.formatBox.setFocused(false); return true; }
+            if (this.formatBox.mouseClicked(mouseX, mouseY, button)) { this.formatBox.setFocused(true); this.labelBox.setFocused(false);  return true; }
+            if (this.modeButton.mouseClicked(mouseX, mouseY, button))   return true;
             if (this.sourceButton.mouseClicked(mouseX, mouseY, button)) return true;
             if (this.deleteButton.mouseClicked(mouseX, mouseY, button)) return true;
-
             this.labelBox.setFocused(false);
             this.formatBox.setFocused(false);
             return false;
@@ -283,13 +252,13 @@ public class CustomLinesScreen extends Screen {
 
         @Override
         public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
-            if (this.labelBox.isFocused() && this.labelBox.keyPressed(keyCode, scanCode, modifiers)) return true;
+            if (this.labelBox.isFocused()  && this.labelBox.keyPressed(keyCode, scanCode, modifiers))  return true;
             return this.formatBox.isFocused() && this.formatBox.keyPressed(keyCode, scanCode, modifiers);
         }
 
         @Override
         public boolean charTyped(char codePoint, int modifiers) {
-            if (this.labelBox.isFocused() && this.labelBox.charTyped(codePoint, modifiers)) return true;
+            if (this.labelBox.isFocused()  && this.labelBox.charTyped(codePoint, modifiers))  return true;
             return this.formatBox.isFocused() && this.formatBox.charTyped(codePoint, modifiers);
         }
 

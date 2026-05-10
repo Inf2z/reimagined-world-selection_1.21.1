@@ -9,7 +9,6 @@
     "MinecraftServerAccessor",
     "ScreenAccessor",
     "SelectWorldAccessor",
-    "SelectWorldMixin",
     "WorldExitMixin",
     "WorldListEntryAccessor",
     "WorldListEntryMixin",

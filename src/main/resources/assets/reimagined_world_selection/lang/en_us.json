@@ -3,6 +3,9 @@
   "reimagined_world_selection.configuration.visible_information": "Visible Information",
   "reimagined_world_selection.configuration.internal": "Internal Editors",
   "reimagined_world_selection.configuration.element_animations": "Element Animations",
+  "reimagined_world_selection.configuration.panel_animation_speed": "Panel Appearing Speed",
+  "reimagined_world_selection.configuration.world_select_animation_speed": "World Selection Speed",
+  "reimagined_world_selection.configuration.world_deselect_animation_speed": "World Deselection Speed",
 
   "reimagined_world_selection.configuration.panel_width_ratio": "Width Ratio",
   "reimagined_world_selection.configuration.panel_background_style": "Background Color",
@@ -11,6 +14,10 @@
 
   "reimagined_world_selection.configuration.enable_world_hover_animation": "World Selection Animation",
   "reimagined_world_selection.configuration.enable_text_hover_animation": "Panel Text Hover Animation",
+
+  "reimagined_world_selection.no_worlds": "No worlds found. Click 'Create New World' to create your first World!",
+  "reimagined_world_selection.configuration.no_worlds_behaviour": "No Worlds Behaviour",
+  "reimagined_world_selection.configuration.no_worlds_behaviour.tooltip": "LIST - show empty world list, GENERATE - open world creation screen",
 
   "reimagined_world_selection.configuration.show_world_name": "Show World Name",
   "reimagined_world_selection.configuration.show_folder_name": "Show Folder Name",

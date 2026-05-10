@@ -6,13 +6,13 @@ import com.google.gson.JsonParser;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.User;
 import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.NbtAccounter;
 import net.minecraft.nbt.NbtIo;
 
 import javax.annotation.Nullable;
 import java.io.BufferedReader;
 import java.io.DataInputStream;
 import java.io.InputStream;
+import java.lang.reflect.Method;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.UUID;
@@ -30,12 +30,12 @@ public class WorldInfoHelper {
              GZIPInputStream gzipInput = new GZIPInputStream(fileInput);
              DataInputStream dataInput = new DataInputStream(gzipInput)) {
 
-            CompoundTag root = NbtIo.read(dataInput, NbtAccounter.unlimitedHeap());
-            if (root == null || !root.contains("Data", 10)) return null;
+            CompoundTag root = readNbt(dataInput);
+            if (root == null || !nbtContains(root, "Data", 10)) return null;
 
             CompoundTag data = root.getCompound("Data");
-            int difficulty = data.contains("Difficulty", 99) ? data.getByte("Difficulty") : 2;
-            boolean locked = data.contains("DifficultyLocked", 1) && data.getBoolean("DifficultyLocked");
+            int difficulty = nbtContains(data, "Difficulty", 99) ? data.getByte("Difficulty") : 2;
+            boolean locked = nbtContains(data, "DifficultyLocked", 1) && data.getBoolean("DifficultyLocked");
 
             return new DifficultyInfo(difficulty, locked);
         } catch (Exception e) {
@@ -49,7 +49,7 @@ public class WorldInfoHelper {
             UUID uuid = user.getProfileId();
             if (uuid == null) return 0L;
 
-            Path statsPath = worldDir.resolve("stats").resolve(uuid.toString() + ".json");
+            Path statsPath = worldDir.resolve("stats").resolve(uuid + ".json");
             if (!Files.exists(statsPath)) return 0L;
 
             try (BufferedReader reader = Files.newBufferedReader(statsPath)) {
@@ -77,5 +77,100 @@ public class WorldInfoHelper {
         } catch (Exception e) {
             return 0L;
         }
+    }
+
+    private static boolean nbtContains(CompoundTag tag, String key, int type) {
+        try {
+            Method m = CompoundTag.class.getMethod("contains", String.class, int.class);
+            return (boolean) m.invoke(tag, key, type);
+        } catch (Throwable ignored) {
+        }
+
+        try {
+            Method m = CompoundTag.class.getMethod("contains", String.class);
+            return (boolean) m.invoke(tag, key);
+        } catch (Throwable ignored) {
+        }
+
+        return false;
+    }
+
+    @Nullable
+    private static CompoundTag readNbt(DataInputStream input) {
+        for (String methodName : new String[]{"read", "readCompressed"}) {
+            try {
+                Method m = NbtIo.class.getMethod(methodName, DataInputStream.class, findNbtAccounter());
+                Object accounter = createUnlimitedAccounter();
+                if (accounter != null) {
+                    return (CompoundTag) m.invoke(null, input, accounter);
+                }
+            } catch (Throwable ignored) {
+            }
+        }
+
+        try {
+            Method m = NbtIo.class.getMethod("read", DataInputStream.class);
+            return (CompoundTag) m.invoke(null, input);
+        } catch (Throwable ignored) {
+        }
+
+        for (Method m : NbtIo.class.getDeclaredMethods()) {
+            Class<?>[] params = m.getParameterTypes();
+            if (m.getReturnType() == CompoundTag.class && params.length >= 1) {
+                if (params[0] == DataInputStream.class) {
+                    try {
+                        m.setAccessible(true);
+                        if (params.length == 1) {
+                            return (CompoundTag) m.invoke(null, input);
+                        }
+                        if (params.length == 2) {
+                            Object accounter = createUnlimitedAccounter();
+                            if (accounter != null) {
+                                return (CompoundTag) m.invoke(null, input, accounter);
+                            }
+                        }
+                    } catch (Throwable ignored) {
+                    }
+                }
+            }
+        }
+
+        return null;
+    }
+
+    private static Class<?> findNbtAccounter() {
+        String[] candidates = {
+                "net.minecraft.nbt.NbtAccounter",
+                "net.minecraft.nbt.NbtTagSizeTracker"
+        };
+        for (String name : candidates) {
+            try {
+                return Class.forName(name);
+            } catch (Throwable ignored) {
+            }
+        }
+        return null;
+    }
+
+    @Nullable
+    private static Object createUnlimitedAccounter() {
+        Class<?> cls = findNbtAccounter();
+        if (cls == null) return null;
+
+        String[] methodNames = {"unlimitedHeap", "unlimited", "create"};
+        for (String name : methodNames) {
+            try {
+                Method m = cls.getMethod(name);
+                return m.invoke(null);
+            } catch (Throwable ignored) {
+            }
+        }
+
+        try {
+            return cls.getConstructor(long.class).newInstance(Long.MAX_VALUE);
+        } catch (Throwable ignored) {
+        }
+
+        return null;
     }
 }

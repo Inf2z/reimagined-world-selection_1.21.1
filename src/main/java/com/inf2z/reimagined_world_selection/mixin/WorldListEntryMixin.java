@@ -2,7 +2,9 @@ package com.inf2z.reimagined_world_selection.mixin;
 
 import com.inf2z.reimagined_world_selection.Config;
 import com.inf2z.reimagined_world_selection.screen.ReimaginedSelectWorldScreen;
+import com.inf2z.reimagined_world_selection.util.GuiCompat;
 import com.inf2z.reimagined_world_selection.util.MultiSelectableList;
+import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.Util;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
@@ -22,10 +24,8 @@ import java.util.WeakHashMap;
 
 @Mixin(WorldSelectionList.WorldListEntry.class)
 public abstract class WorldListEntryMixin {
-    @Unique
-    private static final Map<WorldSelectionList.WorldListEntry, Float> reimagined$selectAnimation = new WeakHashMap<>();
-    @Unique
-    private long reimagined$lastClickTime;
+    @Unique private static final Map<WorldSelectionList.WorldListEntry, Float> reimagined$selectAnimation = new WeakHashMap<>();
+    @Unique private long reimagined$lastClickTime;
 
     @SuppressWarnings("all")
     @Inject(method = "render", at = @At("HEAD"), cancellable = true)
@@ -47,7 +47,9 @@ public abstract class WorldListEntryMixin {
         float target = (isSelected || isMultiSelected) ? 1.0f : 0.0f;
 
         if (Config.ENABLE_WORLD_HOVER_ANIMATION.get()) {
-            float lerpSpeed = (target > anim) ? 0.14f : 0.45f;
+            float lerpSpeed = (target > anim)
+                    ? (float) Config.WORLD_SELECT_ANIMATION_SPEED.get().doubleValue()
+                    : (float) Config.WORLD_DESELECT_ANIMATION_SPEED.get().doubleValue();
             anim = Mth.lerp(lerpSpeed, anim, target);
             if (Math.abs(anim - target) < 0.01f) anim = target;
         } else {
@@ -55,26 +57,20 @@ public abstract class WorldListEntryMixin {
         }
         reimagined$selectAnimation.put(self, anim);
 
-        int staticLeft = left - 2;
-        int staticRight = left + width + 2;
-        int staticTop = top - 2;
-        int staticBottom = top + height + 2;
+        int staticLeft = left - 2, staticRight = left + width + 2;
+        int staticTop = top - 2,   staticBottom = top + height + 2;
 
-        if (hovered && anim < 1.0f) {
-            graphics.fill(staticLeft, staticTop, staticRight, staticBottom, 0x20FFFFFF);
-        }
+        if (hovered && anim < 1.0f) graphics.fill(staticLeft, staticTop, staticRight, staticBottom, 0x20FFFFFF);
 
         if (anim > 0.0f) {
             int alpha = Math.round(0xA0 * anim);
             graphics.fill(staticLeft, staticTop, staticRight, staticBottom, alpha << 24);
-
             int borderAlpha = Math.round(255 * anim);
             int color = (borderAlpha << 24) | 0xFFFFFF;
-
-            graphics.fill(staticLeft, staticTop, staticRight, staticTop + 1, color);
-            graphics.fill(staticLeft, staticBottom - 1, staticRight, staticBottom, color);
-            graphics.fill(staticLeft, staticTop, staticLeft + 1, staticBottom, color);
-            graphics.fill(staticRight - 1, staticTop, staticRight, staticBottom, color);
+            graphics.fill(staticLeft, staticTop,      staticRight, staticTop + 1,    color);
+            graphics.fill(staticLeft, staticBottom - 1, staticRight, staticBottom,   color);
+            graphics.fill(staticLeft, staticTop,      staticLeft + 1, staticBottom,  color);
+            graphics.fill(staticRight - 1, staticTop, staticRight, staticBottom,     color);
         }
 
         float iconAnim = Config.ENABLE_WORLD_HOVER_ANIMATION.get() ? anim : target;
@@ -86,16 +82,17 @@ public abstract class WorldListEntryMixin {
         int iconY = top + (height - iconSize) / 2;
 
         if (Minecraft.getInstance().screen instanceof ReimaginedSelectWorldScreen screen) {
-            graphics.blit(screen.loadIcon(s), iconX, iconY, 0, 0, iconSize, iconSize, iconSize, iconSize);
+            GuiCompat.blit(graphics, screen.loadIcon(s), iconX, iconY, 0.0f, 0.0f, iconSize, iconSize, iconSize, iconSize);
         }
 
         int textBaseX = left + insetX + 12 + iconSize;
-        graphics.pose().pushPose();
+        PoseStack pose = GuiCompat.pose(graphics);
+        pose.pushPose();
         float textY = top + (height - (f.lineHeight * textScale)) / 2f;
-        graphics.pose().translate(textBaseX, textY, 0);
-        graphics.pose().scale(textScale, textScale, 1.0f);
-        graphics.drawString(f, name, 0, 0, 0xFFFFFF, true);
-        graphics.pose().popPose();
+        pose.translate(textBaseX, textY, 0);
+        pose.scale(textScale, textScale, 1.0f);
+        GuiCompat.drawString(graphics, f, name, 0, 0, 0xFFFFFF, true);
+        pose.popPose();
     }
 
     @Inject(method = "mouseClicked", at = @At("HEAD"), cancellable = true)

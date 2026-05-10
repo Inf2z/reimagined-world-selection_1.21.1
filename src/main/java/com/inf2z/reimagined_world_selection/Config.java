@@ -11,9 +11,13 @@ public class Config {
     public static final ModConfigSpec.EnumValue<BackgroundStyle> PANEL_BACKGROUND_STYLE;
     public static final ModConfigSpec.IntValue PANEL_ALPHA;
     public static final ModConfigSpec.EnumValue<PanelBehaviour> PANEL_BEHAVIOUR;
+    public static final ModConfigSpec.EnumValue<NoWorldsBehaviour> NO_WORLDS_BEHAVIOUR;
 
     public static final ModConfigSpec.BooleanValue ENABLE_WORLD_HOVER_ANIMATION;
     public static final ModConfigSpec.BooleanValue ENABLE_TEXT_HOVER_ANIMATION;
+    public static final ModConfigSpec.DoubleValue PANEL_ANIMATION_SPEED;
+    public static final ModConfigSpec.DoubleValue WORLD_SELECT_ANIMATION_SPEED;
+    public static final ModConfigSpec.DoubleValue WORLD_DESELECT_ANIMATION_SPEED;
 
     public static final ModConfigSpec.BooleanValue SHOW_WORLD_NAME;
     public static final ModConfigSpec.BooleanValue SHOW_FOLDER_NAME;
@@ -34,6 +38,7 @@ public class Config {
     public enum TimeFormat { MINUTES, HOURS, DAYS, WEEKS, MONTHS, YEARS }
     public enum VariableSource { WORLD, PLAYER }
     public enum PanelBehaviour { DYNAMIC, STATIC, MIXED }
+    public enum NoWorldsBehaviour { LIST, GENERATE }
 
     static {
         ModConfigSpec.Builder builder = new ModConfigSpec.Builder();
@@ -55,6 +60,10 @@ public class Config {
 
         builder.pop();
 
+        NO_WORLDS_BEHAVIOUR = builder
+                .comment("LIST - show world list, GENERATE - open world creation screen")
+                .defineEnum("no_worlds_behaviour", NoWorldsBehaviour.LIST);
+
         builder.push("element_animations");
 
         ENABLE_WORLD_HOVER_ANIMATION = builder
@@ -62,6 +71,15 @@ public class Config {
 
         ENABLE_TEXT_HOVER_ANIMATION = builder
                 .define("enable_text_hover_animation", true);
+
+        PANEL_ANIMATION_SPEED = builder
+                .defineInRange("panel_animation_speed", 0.15, 0.01, 1.0);
+
+        WORLD_SELECT_ANIMATION_SPEED = builder
+                .defineInRange("world_select_animation_speed", 0.14, 0.01, 1.0);
+
+        WORLD_DESELECT_ANIMATION_SPEED = builder
+                .defineInRange("world_deselect_animation_speed", 0.45, 0.01, 1.0);
 
         builder.pop();
 
