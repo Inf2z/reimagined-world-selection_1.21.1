@@ -9,7 +9,7 @@ displayName="${mod_name}"
 logoFile="logo.png"
 authors="Inf2z"
 description='''
-Mod that changes the way how the World Selection Screen looks.
+Mod that changes the way how the World Select Screen looks.
 Inspired by Reimagined World Menu (lamaprogramer)!
 '''
 
@@ -18,7 +18,7 @@ Inspired by Reimagined World Menu (lamaprogramer)!
     type="required"
     versionRange="[${neo_version},)"
     ordering="NONE"
-    side="CLIENT"
+    side="BOTH"
 
 [[dependencies.${mod_id}]]
     modId="minecraft"
@@ -28,4 +28,4 @@ Inspired by Reimagined World Menu (lamaprogramer)!
     side="BOTH"
 
 [[mixins]]
-config="mixins.reimagined_world_selection.json"
+config="reimagined_world_select.mixins.json"
