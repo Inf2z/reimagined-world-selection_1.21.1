@@ -23,97 +23,83 @@ public class RWSCustomInfoAPI {
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Map<String, Map<String, String>> cache = new HashMap<>();
 
-    @Deprecated
-    public static void saveCurrent(@Nullable String var1, @Nullable String var2, @Nullable String var3) {
-        saveCurrentExtended(var1, var2, var3, null, null, null);
-    }
-
-    @Deprecated
-    public static void saveCurrentExtended(@Nullable String var1, @Nullable String var2, @Nullable String var3,
-                                           @Nullable String var4, @Nullable String var5, @Nullable String var6) {
-        Map<String, String> vars = new HashMap<>();
-        vars.put("1", safe(var1));
-        vars.put("2", safe(var2));
-        vars.put("3", safe(var3));
-        vars.put("4", safe(var4));
-        vars.put("5", safe(var5));
-        vars.put("6", safe(var6));
-
-        saveCurrentTo("world", vars);
-    }
-
-    public static void saveCurrentTo(String storageType, Map<String, String> variables) {
+    public static void varSetValue(int varNumber, String storageType, @Nullable String value) {
         StorageContext context = getWritableContext(storageType);
         if (context == null) return;
 
-        Map<String, String> vars = getVariablesInternal(context.worldId(), context.storageKey());
-
-        for (Map.Entry<String, String> entry : variables.entrySet()) {
-            try {
-                int lineNumber = Integer.parseInt(entry.getKey());
-                applyVarIfNotFrozen(vars, lineNumber, entry.getValue());
-            } catch (NumberFormatException e) {
-                LOGGER.warn("Invalid line number: {}", entry.getKey());
-            }
+        Map<String, String> vars = getVariablesInternal(context.worldId(), context.storageType());
+        if (isFrozen(vars, varNumber)) {
+            LOGGER.debug("Variable {} is frozen, skipping set", varNumber);
+            return;
         }
 
-        saveToDisk(context.worldId(), context.storageKey(), vars);
+        vars.put("var" + varNumber, safe(value));
+        saveToDisk(context.worldId(), context.storageType(), vars);
     }
 
-    public static void updateVar(int lineNumber, String storageType, @Nullable String value) {
+    public static void varAddValue(int varNumber, String storageType, @Nullable String value) {
         StorageContext context = getWritableContext(storageType);
         if (context == null) return;
 
-        Map<String, String> vars = getVariablesInternal(context.worldId(), context.storageKey());
-        if (isFrozen(vars, lineNumber)) return;
+        Map<String, String> vars = getVariablesInternal(context.worldId(), context.storageType());
+        if (isFrozen(vars, varNumber)) {
+            LOGGER.debug("Variable {} is frozen, skipping add", varNumber);
+            return;
+        }
 
-        vars.put("var" + lineNumber, safe(value));
-        saveToDisk(context.worldId(), context.storageKey(), vars);
+        double addAmount;
+        try {
+            addAmount = Double.parseDouble(safe(value));
+        } catch (NumberFormatException e) {
+            LOGGER.warn("varAddValue: invalid numeric value '{}' for variable {}, operation skipped", value, varNumber);
+            return;
+        }
+
+        String currentRaw = vars.getOrDefault("var" + varNumber, "0");
+        if (currentRaw.isEmpty()) currentRaw = "0";
+
+        double current;
+        try {
+            current = Double.parseDouble(currentRaw);
+        } catch (NumberFormatException e) {
+            LOGGER.warn("varAddValue: variable {} contains non-numeric value '{}', operation skipped", varNumber, currentRaw);
+            return;
+        }
+
+        double result = current + addAmount;
+        String formatted = (result == (long) result) ? String.valueOf((long) result) : String.valueOf(result);
+
+        vars.put("var" + varNumber, formatted);
+        saveToDisk(context.worldId(), context.storageType(), vars);
     }
 
-    public static void addValue(int lineNumber, String storageType, double amount) {
-        StorageContext context = getWritableContext(storageType);
-        if (context == null) return;
+    public static void varFreeze(int varNumber, boolean frozen) {
+        for (String type : new String[]{"world", "player"}) {
+            StorageContext context = getWritableContext(type);
+            if (context == null) continue;
 
-        Map<String, String> vars = getVariablesInternal(context.worldId(), context.storageKey());
-        if (isFrozen(vars, lineNumber)) return;
-
-        double currentNum = parseNumber(vars.get("var" + lineNumber));
-        double newVal = currentNum + amount;
-        String formattedVal = (newVal == (long) newVal) ? String.valueOf((long) newVal) : String.valueOf(newVal);
-
-        vars.put("var" + lineNumber, formattedVal);
-        saveToDisk(context.worldId(), context.storageKey(), vars);
-    }
-
-    public static void resetVar(int lineNumber, String storageType) {
-        updateVar(lineNumber, storageType, "0");
+            Map<String, String> vars = getVariablesInternal(context.worldId(), context.storageType());
+            if (frozen) {
+                vars.put("frozen" + varNumber, "true");
+            } else {
+                vars.remove("frozen" + varNumber);
+            }
+            saveToDisk(context.worldId(), context.storageType(), vars);
+        }
     }
 
     @Nonnull
-    public static String getString(int lineNumber, String storageType) {
+    public static String varGetValue(int varNumber, String storageType) {
         StorageContext context = getReadableContext(storageType);
         if (context == null) return "";
 
-        return getVariablesInternal(context.worldId(), context.storageKey()).getOrDefault("var" + lineNumber, "");
-    }
-
-    public static double getNumber(int lineNumber, String storageType) {
-        return parseNumber(getString(lineNumber, storageType));
-    }
-
-    public static void freeze(int lineNumber, String storageType) {
-        setFrozenState(lineNumber, storageType, true);
-    }
-
-    public static void unfreeze(int lineNumber, String storageType) {
-        setFrozenState(lineNumber, storageType, false);
+        return getVariablesInternal(context.worldId(), context.storageType()).getOrDefault("var" + varNumber, "");
     }
 
     @Nonnull
     public static Map<String, String> getWorldVariables(@Nullable String worldId) {
         if (worldId == null || worldId.isEmpty()) return new HashMap<>();
-        return getVariablesInternal(worldId, "save_folder");
+        return new HashMap<>(getVariablesInternal(worldId, "world"));
     }
 
     @Nonnull
@@ -121,35 +107,23 @@ public class RWSCustomInfoAPI {
         if (worldId == null || worldId.isEmpty()) return new HashMap<>();
         String playerKey = getCurrentPlayerStorageKey();
         if (playerKey == null) return new HashMap<>();
-        return getVariablesInternal(worldId, playerKey);
+        return new HashMap<>(getVariablesInternal(worldId, "player"));
     }
 
     public static void clearCache() {
         cache.clear();
     }
 
-    private static void setFrozenState(int lineNumber, String storageType, boolean state) {
-        StorageContext context = getWritableContext(storageType);
-        if (context == null) return;
-
-        Map<String, String> vars = getVariablesInternal(context.worldId(), context.storageKey());
-        vars.put("frozen" + lineNumber, String.valueOf(state));
-        saveToDisk(context.worldId(), context.storageKey(), vars);
-    }
-
-    private static boolean isFrozen(Map<String, String> vars, int lineNumber) {
-        return Boolean.parseBoolean(vars.getOrDefault("frozen" + lineNumber, "false"));
-    }
-
-    private static void applyVarIfNotFrozen(Map<String, String> vars, int lineNumber, @Nullable String value) {
-        if (!isFrozen(vars, lineNumber)) {
-            vars.put("var" + lineNumber, safe(value));
-        }
+    private static boolean isFrozen(Map<String, String> vars, int varNumber) {
+        return "true".equals(vars.get("frozen" + varNumber));
     }
 
     @Nonnull
-    private static Map<String, String> getVariablesInternal(String worldId, String storageKey) {
-        String cacheKey = worldId + "|" + storageKey;
+    private static Map<String, String> getVariablesInternal(String worldId, String storageType) {
+        String resolvedKey = resolveFileKey(storageType);
+        if (resolvedKey == null) return new HashMap<>();
+
+        String cacheKey = worldId + "|" + storageType + "|" + resolvedKey;
         if (cache.containsKey(cacheKey)) {
             Map<String, String> cached = cache.get(cacheKey);
             return cached != null ? cached : new HashMap<>();
@@ -157,18 +131,12 @@ public class RWSCustomInfoAPI {
 
         Map<String, String> vars = new HashMap<>();
         try {
-            Path path = resolveStoragePath(worldId, storageKey);
+            Path path = resolveStoragePath(worldId, storageType, resolvedKey);
             if (path != null && Files.exists(path)) {
                 readVarsFromPath(vars, path);
-            } else if ("save_folder".equals(storageKey)) {
-                Path gameDir = Minecraft.getInstance().gameDirectory.toPath();
-                Path legacyPath = gameDir.resolve("saves").resolve(worldId).resolve("reimagined_vars.json");
-                if (Files.exists(legacyPath)) {
-                    readVarsFromPath(vars, legacyPath);
-                }
             }
         } catch (Exception e) {
-            LOGGER.debug("Failed to read vars for world {} and storage {}", worldId, storageKey);
+            LOGGER.debug("Failed to read vars for world '{}', type '{}', key '{}'", worldId, storageType, resolvedKey);
         }
 
         cache.put(cacheKey, vars);
@@ -186,9 +154,12 @@ public class RWSCustomInfoAPI {
         }
     }
 
-    private static void saveToDisk(String worldId, String storageKey, Map<String, String> vars) {
+    private static void saveToDisk(String worldId, String storageType, Map<String, String> vars) {
+        String resolvedKey = resolveFileKey(storageType);
+        if (resolvedKey == null) return;
+
         try {
-            Path path = resolveStoragePath(worldId, storageKey);
+            Path path = resolveStoragePath(worldId, storageType, resolvedKey);
             if (path == null) return;
 
             Files.createDirectories(path.getParent());
@@ -201,9 +172,39 @@ public class RWSCustomInfoAPI {
             try (Writer writer = Files.newBufferedWriter(path)) {
                 GSON.toJson(json, writer);
             }
+
+            String cacheKey = worldId + "|" + storageType + "|" + resolvedKey;
+            cache.put(cacheKey, vars);
         } catch (Exception e) {
-            LOGGER.error("Failed to save vars for world {}", worldId);
+            LOGGER.error("Failed to save vars for world '{}', type '{}'", worldId, storageType);
         }
+    }
+
+    @Nullable
+    private static Path resolveStoragePath(String worldId, String storageType, String resolvedKey) {
+        try {
+            Path gameDir = Minecraft.getInstance().gameDirectory.toPath();
+            Path worldDir = gameDir.resolve("saves").resolve(worldId);
+            Path rwsVarsDir = worldDir.resolve("rws_vars");
+
+            if ("world".equalsIgnoreCase(storageType)) {
+                return rwsVarsDir.resolve("world").resolve("vars.json");
+            }
+            if ("player".equalsIgnoreCase(storageType)) {
+                return rwsVarsDir.resolve("player").resolve(resolvedKey + ".json");
+            }
+        } catch (Exception e) {
+            LOGGER.debug("Failed to resolve storage path");
+        }
+        return null;
+    }
+
+    @Nullable
+    private static String resolveFileKey(String storageType) {
+        if ("world".equalsIgnoreCase(storageType)) return "world";
+        if ("player".equalsIgnoreCase(storageType)) return getCurrentPlayerStorageKey();
+        LOGGER.warn("Unknown storage type: '{}', expected 'world' or 'player'", storageType);
+        return null;
     }
 
     private static String safe(@Nullable String value) {
@@ -240,12 +241,11 @@ public class RWSCustomInfoAPI {
     @Nullable
     private static StorageContext getWritableContext(String storageType) {
         String worldId = getCurrentWorldId();
-        if (worldId == null) return null;
-
-        String storageKey = resolveStorageKey(storageType);
-        if (storageKey == null) return null;
-
-        return new StorageContext(worldId, storageKey);
+        if (worldId == null) {
+            LOGGER.debug("Cannot access vars: no singleplayer world loaded");
+            return null;
+        }
+        return new StorageContext(worldId, storageType);
     }
 
     @Nullable
@@ -253,28 +253,5 @@ public class RWSCustomInfoAPI {
         return getWritableContext(storageType);
     }
 
-    @Nullable
-    private static String resolveStorageKey(String storageType) {
-        if ("world".equalsIgnoreCase(storageType)) return "save_folder";
-        if ("player".equalsIgnoreCase(storageType)) return getCurrentPlayerStorageKey();
-        return null;
-    }
-
-    @Nullable
-    private static Path resolveStoragePath(String worldId, String storageKey) {
-        try {
-            Path gameDir = Minecraft.getInstance().gameDirectory.toPath();
-            Path worldDir = gameDir.resolve("saves").resolve(worldId);
-
-            if ("save_folder".equals(storageKey)) {
-                return worldDir.resolve("reimagined_vars.json");
-            }
-
-            return worldDir.resolve("reimagined_player_vars").resolve(storageKey + ".json");
-        } catch (Exception e) {
-            return null;
-        }
-    }
-
-    private record StorageContext(String worldId, String storageKey) {}
+    private record StorageContext(String worldId, String storageType) {}
 }
