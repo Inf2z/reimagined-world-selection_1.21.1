@@ -3,12 +3,14 @@ package com.inf2z.reimagined_world_select.screen;
 import com.inf2z.reimagined_world_select.Config;
 import com.inf2z.reimagined_world_select.api.RWSCustomInfoAPI;
 import com.inf2z.reimagined_world_select.mixin.WorldListEntryAccessor;
+import com.inf2z.reimagined_world_select.util.CustomIconManager;
 import com.inf2z.reimagined_world_select.util.GuiCompat;
 import com.inf2z.reimagined_world_select.util.MultiSelectableList;
+import com.inf2z.reimagined_world_select.util.SelectionListCompat;
 import com.inf2z.reimagined_world_select.util.TextureCompat;
 import com.inf2z.reimagined_world_select.util.WorldInfoHelper;
-import com.inf2z.reimagined_world_select.util.SelectionListCompat;
 import com.mojang.blaze3d.platform.NativeImage;
+import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
@@ -36,27 +38,37 @@ import org.slf4j.LoggerFactory;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.annotation.ParametersAreNonnullByDefault;
+import java.awt.Desktop;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.text.SimpleDateFormat;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
 
 @ParametersAreNonnullByDefault
 public class ReimaginedSelectWorldScreen extends SelectWorldScreen {
     private static final Logger LOGGER = LoggerFactory.getLogger(ReimaginedSelectWorldScreen.class);
+    private static final ResourceLocation DEFAULT_ICON = ResourceLocation.withDefaultNamespace("textures/misc/unknown_server.png");
+    private static final LoadedImage DEFAULT_LOADED_ICON = new LoadedImage(DEFAULT_ICON, 64, 64);
 
     private int panelWidth;
     private WorldSelectionList cachedList;
-    private final Map<String, ResourceLocation> iconCache = new HashMap<>();
+    private final Map<String, LoadedImage> staticTextureCache = new HashMap<>();
     private final Map<String, Float> sidebarLineAnimations = new HashMap<>();
     private final SimpleDateFormat dateFormat = new SimpleDateFormat("dd.MM.yyyy HH:mm");
-    private static final ResourceLocation DEFAULT_ICON = ResourceLocation.withDefaultNamespace("textures/misc/unknown_server.png");
 
     private float sidebarScroll;
     private float sidebarTargetScroll;
-
     private static boolean panelVisible = true;
     private float panelAnimationProgress = panelVisible ? 1.0f : 0.0f;
 
@@ -64,29 +76,15 @@ public class ReimaginedSelectWorldScreen extends SelectWorldScreen {
         super(lastScreen != null ? lastScreen : new net.minecraft.client.gui.screens.TitleScreen());
     }
 
-    private boolean isPanelLeft() {
-        return Config.PANEL_POSITION.get() == Config.PanelPosition.LEFT;
-    }
-
-    private int currentPanelPx() {
-        return (int) (this.panelWidth * panelAnimationProgress);
-    }
-
-    private int panelLeft() {
-        return isPanelLeft() ? 0 : this.width - currentPanelPx();
-    }
-
-    private int panelRight() {
-        return panelLeft() + currentPanelPx();
-    }
-
-    private int listAreaLeft() {
-        return isPanelLeft() ? currentPanelPx() : 0;
-    }
-
-    private int listAreaWidth() {
-        return this.width - currentPanelPx();
-    }
+    private boolean isPanelLeft() { return Config.PANEL_POSITION.get() == Config.PanelPosition.LEFT; }
+    private int currentPanelPx() { return (int) (this.panelWidth * panelAnimationProgress); }
+    private int panelLeft() { return isPanelLeft() ? 0 : this.width - currentPanelPx(); }
+    private int panelRight() { return panelLeft() + currentPanelPx(); }
+    private int listAreaLeft() { return isPanelLeft() ? currentPanelPx() : 0; }
+    private int listAreaWidth() { return this.width - currentPanelPx(); }
+    private float panelTextScale() { return (float) Config.PANEL_TEXT_SCALE.get().doubleValue(); }
+    private int scaledLineHeight() { return Math.max(1, Math.round(this.font.lineHeight * panelTextScale())); }
+    private int singleInfoLineHeight() { return Math.max(10, scaledLineHeight() + 2); }
 
     @Override
     protected void init() {
@@ -102,20 +100,19 @@ public class ReimaginedSelectWorldScreen extends SelectWorldScreen {
     public Component getTitle() { return Component.empty(); }
 
     private void togglePanel() { panelVisible = !panelVisible; }
-
     private boolean isPanelDynamic() { return Config.PANEL_BEHAVIOUR.get() == Config.PanelBehaviour.DYNAMIC; }
-    private boolean isPanelMixed()   { return Config.PANEL_BEHAVIOUR.get() == Config.PanelBehaviour.MIXED; }
-
-    private boolean hasWorldSelected() {
-        return this.cachedList != null && this.cachedList.getSelected() instanceof WorldSelectionList.WorldListEntry;
-    }
+    private boolean isPanelMixed() { return Config.PANEL_BEHAVIOUR.get() == Config.PanelBehaviour.MIXED; }
+    private boolean hasWorldSelected() { return this.cachedList != null && this.cachedList.getSelected() instanceof WorldSelectionList.WorldListEntry; }
 
     @Nullable
-    private MultiSelectableList getMultiList() {
-        return this.cachedList instanceof MultiSelectableList multi ? multi : null;
-    }
-
+    private MultiSelectableList getMultiList() { return this.cachedList instanceof MultiSelectableList multi ? multi : null; }
     private boolean hasMultiSelection() { return collectSelectedWorldEntries().size() > 1; }
+
+    @Nullable
+    private LevelSummary getSelectedSummary() {
+        if (this.cachedList == null || !(this.cachedList.getSelected() instanceof WorldSelectionList.WorldListEntry entry)) return null;
+        return ((WorldListEntryAccessor) (Object) entry).getSummary();
+    }
 
     private Set<WorldSelectionList.WorldListEntry> collectSelectedWorldEntries() {
         Set<WorldSelectionList.WorldListEntry> selected = new LinkedHashSet<>();
@@ -123,26 +120,17 @@ public class ReimaginedSelectWorldScreen extends SelectWorldScreen {
         MultiSelectableList multi = getMultiList();
         if (multi != null) {
             for (var child : this.cachedList.children()) {
-                if (child instanceof WorldSelectionList.WorldListEntry entry && multi.rws$isMultiSelected(entry)) {
-                    selected.add(entry);
-                }
+                if (child instanceof WorldSelectionList.WorldListEntry entry && multi.rws$isMultiSelected(entry)) selected.add(entry);
             }
         }
-        if (this.cachedList.getSelected() instanceof WorldSelectionList.WorldListEntry current) {
-            selected.add(current);
-        }
+        if (this.cachedList.getSelected() instanceof WorldSelectionList.WorldListEntry current) selected.add(current);
         return selected;
     }
 
     private void applyReimaginedLayout() {
         this.panelWidth = (int) (this.width * Config.PANEL_WIDTH_RATIO.get());
-        if (isPanelMixed()) {
-            panelVisible = hasWorldSelected();
-            panelAnimationProgress = panelVisible ? 1.0f : 0.0f;
-        } else if (!isPanelDynamic()) {
-            panelVisible = true;
-            panelAnimationProgress = 1.0f;
-        }
+        if (isPanelMixed()) { panelVisible = hasWorldSelected(); panelAnimationProgress = panelVisible ? 1.0f : 0.0f; }
+        else if (!isPanelDynamic()) { panelVisible = true; panelAnimationProgress = 1.0f; }
         if (this.cachedList == null) {
             for (GuiEventListener listener : this.children()) {
                 if (listener instanceof WorldSelectionList list) { this.cachedList = list; break; }
@@ -154,19 +142,15 @@ public class ReimaginedSelectWorldScreen extends SelectWorldScreen {
     private void updateLayout() {
         int laLeft = listAreaLeft();
         int laWidth = listAreaWidth();
-
         for (GuiEventListener listener : this.children()) {
             if (listener instanceof AbstractWidget widget) {
                 if (widget.getY() < 32 && !(widget instanceof EditBox)) {
                     widget.visible = false; widget.active = false; widget.setX(-10000); continue;
                 }
                 if (widget instanceof WorldSelectionList list) {
-                    this.cachedList = list;
-                    list.setWidth(laWidth - 40);
-                    list.setX(laLeft + 20);
+                    this.cachedList = list; list.setWidth(laWidth - 40); list.setX(laLeft + 20);
                 } else if (widget instanceof EditBox search) {
-                    search.setY(22);
-                    search.setX(laLeft + (laWidth - search.getWidth()) / 2);
+                    search.setY(22); search.setX(laLeft + (laWidth - search.getWidth()) / 2);
                 }
             }
         }
@@ -175,20 +159,18 @@ public class ReimaginedSelectWorldScreen extends SelectWorldScreen {
 
     private void layoutFooterButtons(int areaLeft, int areaWidth) {
         AbstractWidget play = null, create = null, edit = null, delete = null, recreate = null, back = null;
-
         for (GuiEventListener listener : this.children()) {
             if (listener instanceof AbstractWidget widget && widget.getY() > this.height - 80) {
                 switch (getWidgetKey(widget)) {
-                    case "selectWorld.select"   -> play     = widget;
-                    case "selectWorld.create"   -> create   = widget;
-                    case "selectWorld.edit"     -> edit     = widget;
-                    case "selectWorld.delete"   -> delete   = widget;
+                    case "selectWorld.select" -> play = widget;
+                    case "selectWorld.create" -> create = widget;
+                    case "selectWorld.edit" -> edit = widget;
+                    case "selectWorld.delete" -> delete = widget;
                     case "selectWorld.recreate" -> recreate = widget;
-                    case "gui.back"             -> back     = widget;
+                    case "gui.back" -> back = widget;
                 }
             }
         }
-
         if (play == null || create == null || edit == null || delete == null || recreate == null || back == null) return;
 
         int fixedAreaWidth = this.width - this.panelWidth;
@@ -196,40 +178,29 @@ public class ReimaginedSelectWorldScreen extends SelectWorldScreen {
         int columnWidth = (fixedAreaWidth - 40 - columnGap) / 2;
         int smallButtonWidth = (columnWidth - innerGap) / 2;
         int largeButtonWidth = smallButtonWidth * 2 + innerGap;
-
         int totalWidth = largeButtonWidth * 2 + columnGap;
         int leftColumnX = areaLeft + (areaWidth - totalWidth) / 2;
         int rightColumnX = leftColumnX + largeButtonWidth + columnGap;
-        int topRowY = this.height - 52;
-        int bottomRowY = topRowY + 22;
+        int topRowY = this.height - 52, bottomRowY = topRowY + 22;
 
-        play.setX(leftColumnX);       play.setY(topRowY);     play.setWidth(largeButtonWidth);
-        create.setX(rightColumnX);    create.setY(topRowY);   create.setWidth(largeButtonWidth);
-
-        edit.setX(leftColumnX);       edit.setY(bottomRowY);  edit.setWidth(smallButtonWidth);
-        delete.setX(leftColumnX + smallButtonWidth + innerGap);
-        delete.setY(bottomRowY); delete.setWidth(smallButtonWidth);
-
-        recreate.setX(rightColumnX);  recreate.setY(bottomRowY); recreate.setWidth(smallButtonWidth);
-        back.setX(rightColumnX + smallButtonWidth + innerGap);
-        back.setY(bottomRowY);     back.setWidth(smallButtonWidth);
+        play.setX(leftColumnX); play.setY(topRowY); play.setWidth(largeButtonWidth);
+        create.setX(rightColumnX); create.setY(topRowY); create.setWidth(largeButtonWidth);
+        edit.setX(leftColumnX); edit.setY(bottomRowY); edit.setWidth(smallButtonWidth);
+        delete.setX(leftColumnX + smallButtonWidth + innerGap); delete.setY(bottomRowY); delete.setWidth(smallButtonWidth);
+        recreate.setX(rightColumnX); recreate.setY(bottomRowY); recreate.setWidth(smallButtonWidth);
+        back.setX(rightColumnX + smallButtonWidth + innerGap); back.setY(bottomRowY); back.setWidth(smallButtonWidth);
     }
 
     private void wrapDeleteButton() {
         AbstractWidget deleteWidget = null;
         for (GuiEventListener listener : new ArrayList<>(this.children())) {
-            if (listener instanceof AbstractWidget widget && "selectWorld.delete".equals(getWidgetKey(widget))) {
-                deleteWidget = widget; break;
-            }
+            if (listener instanceof AbstractWidget widget && "selectWorld.delete".equals(getWidgetKey(widget))) { deleteWidget = widget; break; }
         }
         if (deleteWidget == null) return;
-
         final AbstractWidget original = deleteWidget;
         this.removeWidget(original);
-
         Button newDelete = Button.builder(original.getMessage(), btn -> handleMultiDelete())
-                .bounds(original.getX(), original.getY(), original.getWidth(), original.getHeight())
-                .build();
+                .bounds(original.getX(), original.getY(), original.getWidth(), original.getHeight()).build();
         newDelete.active = original.active;
         this.addRenderableWidget(newDelete);
     }
@@ -237,8 +208,7 @@ public class ReimaginedSelectWorldScreen extends SelectWorldScreen {
     private void deleteWorldFiles(LevelSummary summary) {
         try {
             releaseCachedTexturesForWorld(summary.getLevelId());
-            Path worldPath = Objects.requireNonNull(this.minecraft)
-                    .getLevelSource().getBaseDir().resolve(summary.getLevelId());
+            Path worldPath = Objects.requireNonNull(this.minecraft).getLevelSource().getBaseDir().resolve(summary.getLevelId());
             if (!Files.exists(worldPath)) return;
             IOException lastException = null;
             for (int attempt = 0; attempt < 5; attempt++) {
@@ -262,10 +232,8 @@ public class ReimaginedSelectWorldScreen extends SelectWorldScreen {
         MultiSelectableList multi = getMultiList();
         Set<WorldSelectionList.WorldListEntry> toDelete = collectSelectedWorldEntries();
         if (toDelete.isEmpty()) return;
-
         List<String> worldNames = new ArrayList<>();
         List<LevelSummary> summaries = new ArrayList<>();
-
         for (WorldSelectionList.WorldListEntry delEntry : toDelete) {
             WorldListEntryAccessor acc = (WorldListEntryAccessor) (Object) delEntry;
             LevelSummary sum = acc.getSummary();
@@ -274,35 +242,23 @@ public class ReimaginedSelectWorldScreen extends SelectWorldScreen {
             summaries.add(sum);
         }
         if (summaries.isEmpty()) return;
-
         if (summaries.size() == 1) {
             LevelSummary summary = summaries.getFirst();
-            mc.setScreen(new ConfirmScreen(
-                    confirmed -> {
-                        if (confirmed) { deleteWorldFiles(summary); if (multi != null) multi.rws$clearMultiSelection(); }
-                        mc.setScreen(new ReimaginedSelectWorldScreen(null));
-                    },
-                    Component.translatable("selectWorld.deleteQuestion"),
-                    Component.translatable("selectWorld.deleteWarning", summary.getLevelName())
-            ));
+            mc.setScreen(new ConfirmScreen(confirmed -> {
+                if (confirmed) { deleteWorldFiles(summary); if (multi != null) multi.rws$clearMultiSelection(); }
+                mc.setScreen(new ReimaginedSelectWorldScreen(null));
+            }, Component.translatable("selectWorld.deleteQuestion"), Component.translatable("selectWorld.deleteWarning", summary.getLevelName())));
         } else {
-            int count = summaries.size();
-            mc.setScreen(new ConfirmScreen(
-                    confirmed -> {
-                        if (confirmed) { for (LevelSummary sum : summaries) deleteWorldFiles(sum); if (multi != null) multi.rws$clearMultiSelection(); }
-                        mc.setScreen(new ReimaginedSelectWorldScreen(null));
-                    },
-                    Component.translatable("reimagined_world_select.delete_confirm_title", count),
-                    Component.literal(String.join(", ", worldNames))
-            ));
+            mc.setScreen(new ConfirmScreen(confirmed -> {
+                if (confirmed) { for (LevelSummary sum : summaries) deleteWorldFiles(sum); if (multi != null) multi.rws$clearMultiSelection(); }
+                mc.setScreen(new ReimaginedSelectWorldScreen(null));
+            }, Component.translatable("reimagined_world_select.delete_confirm_title", summaries.size()), Component.literal(String.join(", ", worldNames))));
         }
     }
 
     private void updateButtonStatesForMultiSelect() {
         boolean multiSelected = hasMultiSelection();
-        boolean anyWorldSelected = this.cachedList != null &&
-                this.cachedList.getSelected() instanceof WorldSelectionList.WorldListEntry;
-
+        boolean anyWorldSelected = this.cachedList != null && this.cachedList.getSelected() instanceof WorldSelectionList.WorldListEntry;
         for (GuiEventListener listener : this.children()) {
             if (listener instanceof AbstractWidget widget && widget.getY() > this.height - 80) {
                 switch (getWidgetKey(widget)) {
@@ -315,9 +271,7 @@ public class ReimaginedSelectWorldScreen extends SelectWorldScreen {
 
     private String getWidgetKey(AbstractWidget widget) {
         Component message = widget.getMessage();
-        if (message instanceof MutableComponent mutable && mutable.getContents() instanceof TranslatableContents translatable) {
-            return translatable.getKey();
-        }
+        if (message instanceof MutableComponent mutable && mutable.getContents() instanceof TranslatableContents translatable) return translatable.getKey();
         return message.getString();
     }
 
@@ -335,96 +289,80 @@ public class ReimaginedSelectWorldScreen extends SelectWorldScreen {
 
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
+        if (button == 0 && handleCustomIconFolderButtonClick(mouseX, mouseY)) return true;
         if (isPanelDynamic()) {
             int btnWidth = 12, btnHeight = 17;
             int btnY = (this.height - btnHeight) / 2;
-            int btnX;
-            if (isPanelLeft()) {
-                btnX = currentPanelPx();
-            } else {
-                btnX = panelLeft() - btnWidth;
-            }
-            if (mouseX >= btnX && mouseX <= btnX + btnWidth &&
-                    mouseY >= btnY && mouseY <= btnY + btnHeight && button == 0) {
-                togglePanel(); return true;
-            }
+            int btnX = isPanelLeft() ? currentPanelPx() : panelLeft() - btnWidth;
+            if (mouseX >= btnX && mouseX <= btnX + btnWidth && mouseY >= btnY && mouseY <= btnY + btnHeight) { togglePanel(); return true; }
         }
         boolean result = super.mouseClicked(mouseX, mouseY, button);
         updateButtonStatesForMultiSelect();
         return result;
     }
 
-    @Nullable
-    private WorldSelectionList.WorldListEntry getClickedWorldEntry(double mouseX, double mouseY) {
-        if (this.cachedList == null) return null;
-        int rowWidth = this.cachedList.getRowWidth();
-        int centerX = this.cachedList.getX() + this.cachedList.getWidth() / 2;
-        int rowLeft = centerX - rowWidth / 2, rowRight = centerX + rowWidth / 2;
-        if (mouseX < rowLeft || mouseX > rowRight) return null;
-        if (mouseY < this.cachedList.getY() || mouseY > this.cachedList.getBottom()) return null;
-        int relativeY = (int)(mouseY - this.cachedList.getY() + SelectionListCompat.getScrollAmount(this.cachedList)) - 4;
-        if (relativeY < 0) return null;
-        int idx = relativeY / 40;
-        if (idx >= this.cachedList.children().size()) return null;
-        var entry = this.cachedList.children().get(idx);
-        return entry instanceof WorldSelectionList.WorldListEntry worldEntry ? worldEntry : null;
+    private boolean handleCustomIconFolderButtonClick(double mouseX, double mouseY) {
+        Rect rect = getLargeIconButtonRect();
+        LevelSummary summary = getSelectedSummary();
+        if (rect == null || summary == null) return false;
+        if (!rect.contains(mouseX, mouseY)) return false;
+        openCustomIconFolder(summary);
+        return true;
+    }
+
+    private void openCustomIconFolder(LevelSummary summary) {
+        try {
+            Path dir = CustomIconManager.ensureCustomIconDirectory(summary.getLevelId());
+            try {
+                if (Desktop.isDesktopSupported() && Desktop.getDesktop().isSupported(Desktop.Action.OPEN)) { Desktop.getDesktop().open(dir.toFile()); return; }
+            } catch (Exception ignored) {}
+            String os = System.getProperty("os.name", "").toLowerCase(Locale.ROOT);
+            if (os.contains("win")) new ProcessBuilder("explorer.exe", dir.toAbsolutePath().toString()).start();
+            else if (os.contains("mac")) new ProcessBuilder("open", dir.toAbsolutePath().toString()).start();
+            else new ProcessBuilder("xdg-open", dir.toAbsolutePath().toString()).start();
+        } catch (Exception e) { LOGGER.warn("Failed to open custom icon folder for world '{}'", summary.getLevelId(), e); }
+    }
+
+    private boolean needsContinuousRender() {
+        LevelSummary summary = getSelectedSummary();
+        if (summary == null) return false;
+        CustomIconManager.DisplayedIcon icon = CustomIconManager.getDisplayedIcon(summary.getLevelId());
+        if (icon.isPresent() && icon.layers().size() > 1) return true;
+        return CustomIconManager.hasActiveSlideshow(summary.getLevelId());
     }
 
     @Override
     public void render(GuiGraphics gui, int mouseX, int mouseY, float tick) {
-        if (isPanelMixed()) {
-            boolean shouldShow = hasWorldSelected();
-            if (panelVisible != shouldShow) panelVisible = shouldShow;
-        }
-
+        if (isPanelMixed()) { boolean shouldShow = hasWorldSelected(); if (panelVisible != shouldShow) panelVisible = shouldShow; }
         if (isPanelDynamic() || isPanelMixed()) {
             float targetProgress = panelVisible ? 1.0f : 0.0f;
             if (Math.abs(panelAnimationProgress - targetProgress) > 0.001f) {
                 panelAnimationProgress = Mth.lerp((float) Config.PANEL_ANIMATION_SPEED.get().doubleValue(), panelAnimationProgress, targetProgress);
                 updateLayout();
-            } else {
-                panelAnimationProgress = targetProgress;
-            }
+            } else panelAnimationProgress = targetProgress;
         }
 
-        int laLeft = listAreaLeft();
-        int laWidth = listAreaWidth();
+        int laLeft = listAreaLeft(), laWidth = listAreaWidth();
         int desiredCenter = laLeft + laWidth / 2;
         int originalWidth = this.width;
-
-        if (isPanelLeft()) {
-            this.width = desiredCenter * 2;
-        } else {
-            this.width = laWidth;
-        }
-
+        this.width = isPanelLeft() ? desiredCenter * 2 : laWidth;
         super.render(gui, mouseX, mouseY, tick);
         this.width = originalWidth;
 
         if (panelAnimationProgress > 0.001f) {
             int alpha = Config.PANEL_ALPHA.get();
             int bgColor = Config.PANEL_BACKGROUND_STYLE.get() == Config.BackgroundStyle.GRAY ? 0x1A1A1A : 0x000000;
-            int pL = panelLeft();
-            int pR = panelRight();
+            int pL = panelLeft(), pR = panelRight();
             gui.fill(pL, 0, pR, this.height, (alpha << 24) | bgColor);
-
-            if (isPanelLeft()) {
-                gui.fill(pR - 1, 0, pR, this.height, 0x66555555);
-            } else {
-                gui.fill(pL, 0, pL + 1, this.height, 0x66555555);
-            }
-
+            if (isPanelLeft()) gui.fill(pR - 1, 0, pR, this.height, 0x66555555);
+            else gui.fill(pL, 0, pL + 1, this.height, 0x66555555);
             this.sidebarScroll = Mth.lerp(0.2f, this.sidebarScroll, this.sidebarTargetScroll);
             renderSidebarInfo(gui);
         }
 
         if (isPanelDynamic()) renderToggleButton(gui, mouseX, mouseY);
-
         if (this.cachedList != null && this.cachedList.children().isEmpty()) {
-            GuiCompat.drawCenteredString(gui, this.font,
-                    Component.translatable("reimagined_world_select.no_worlds"),
-                    laLeft + laWidth / 2,
-                    this.height / 2, 0x808080);
+            GuiCompat.drawCenteredString(gui, this.font, Component.translatable("reimagined_world_select.no_worlds"), laLeft + laWidth / 2, this.height / 2, 0x808080);
         }
     }
 
@@ -432,68 +370,65 @@ public class ReimaginedSelectWorldScreen extends SelectWorldScreen {
         if (this.minecraft == null) return;
         releaseCachedTexture(levelId);
         releaseCachedTexture("large_" + levelId);
+        CustomIconManager.releaseWorld(levelId);
     }
 
     private void releaseCachedTexture(String key) {
-        ResourceLocation loc = this.iconCache.remove(key);
-        if (loc != null && !loc.equals(DEFAULT_ICON)) {
-            this.minecraft.getTextureManager().release(loc);
-        }
+        LoadedImage image = this.staticTextureCache.remove(key);
+        if (image != null && !image.location().equals(DEFAULT_ICON)) this.minecraft.getTextureManager().release(image.location());
     }
 
     private void renderToggleButton(GuiGraphics gui, int mouseX, int mouseY) {
         int btnWidth = 12, btnHeight = 17;
         int btnY = (this.height - btnHeight) / 2;
-        int btnX;
-        String arrow;
-
-        if (isPanelLeft()) {
-            btnX = currentPanelPx();
-            arrow = panelVisible ? "<" : ">";
-        } else {
-            btnX = panelLeft() - btnWidth;
-            arrow = panelVisible ? ">" : "<";
-        }
-
-        boolean hovered = mouseX >= btnX && mouseX <= btnX + btnWidth &&
-                mouseY >= btnY && mouseY <= btnY + btnHeight;
+        int btnX; String arrow;
+        if (isPanelLeft()) { btnX = currentPanelPx(); arrow = panelVisible ? "<" : ">"; }
+        else { btnX = panelLeft() - btnWidth; arrow = panelVisible ? ">" : "<"; }
+        boolean hovered = mouseX >= btnX && mouseX <= btnX + btnWidth && mouseY >= btnY && mouseY <= btnY + btnHeight;
         gui.fill(btnX, btnY, btnX + btnWidth, btnY + btnHeight, hovered ? 0x80404040 : 0x60303030);
-
-        if (isPanelLeft()) {
-            gui.fill(btnX + btnWidth - 1, btnY, btnX + btnWidth, btnY + btnHeight, 0x66555555);
-        } else {
-            gui.fill(btnX, btnY, btnX + 1, btnY + btnHeight, 0x66555555);
-        }
-
+        if (isPanelLeft()) gui.fill(btnX + btnWidth - 1, btnY, btnX + btnWidth, btnY + btnHeight, 0x66555555);
+        else gui.fill(btnX, btnY, btnX + 1, btnY + btnHeight, 0x66555555);
         int textX = btnX + (btnWidth - this.font.width(arrow)) / 2;
         int textY = btnY + (btnHeight - this.font.lineHeight) / 2;
         GuiCompat.drawString(gui, this.font, arrow, textX, textY, hovered ? 0xFFFFFFFF : 0xFFCCCCCC, true);
     }
 
     private int getSidebarContentHeight() {
-        if (!hasWorldSelected()) return 0;
-        int y = 20, pW = this.panelWidth - 20;
+        LevelSummary selected = getSelectedSummary();
+        if (selected == null) return 0;
+        int y = 0, pW = this.panelWidth - 20;
         List<String> order = getOrder();
-        for (String id : order) y = addHeightForElement(id, y, pW);
+        for (String id : order) y = addHeightForElement(id, y, pW, selected);
         List<Config.CustomLineConfig> customLines = Config.getCustomLines();
         long customsInOrder = order.stream().filter(s -> s.startsWith("custom_")).count();
         int extraCustoms = customLines.size() - (int) customsInOrder;
-        if (extraCustoms > 0) y += extraCustoms * 12;
-        return y + 10;
+        if (extraCustoms > 0) y += extraCustoms * singleInfoLineHeight();
+        return y;
     }
 
-    private int addHeightForElement(String id, int y, int pW) {
-        if (id.startsWith("custom_")) return y + 12;
+    private int computeAlignmentOffset() {
+        int contentHeight = getSidebarContentHeight();
+        int visibleHeight = this.height - 20;
+
+        return switch (Config.PANEL_TEXT_ALIGNMENT.get()) {
+            case TOP -> 20;
+            case CENTER -> Math.max(20, (visibleHeight - contentHeight) / 2 + 10);
+            case BOTTOM -> Math.max(20, visibleHeight - contentHeight);
+        };
+    }
+
+    private int addHeightForElement(String id, int y, int pW, LevelSummary s) {
+        if (id.startsWith("custom_")) return y + singleInfoLineHeight();
         return switch (id) {
-            case "large_icon"  -> Config.SHOW_LARGE_ICON.get()  ? y + (pW * 9 / 16) + 12      : y;
-            case "world_name"  -> Config.SHOW_WORLD_NAME.get()  ? y + this.font.lineHeight + 4 : y;
-            case "folder_name" -> Config.SHOW_FOLDER_NAME.get() ? y + this.font.lineHeight + 8 : y;
-            case "game_mode"   -> Config.SHOW_GAME_MODE.get()   ? y + 12 : y;
-            case "difficulty"  -> Config.SHOW_DIFFICULTY.get()  ? y + 12 : y;
-            case "time_played" -> Config.SHOW_TIME_PLAYED.get() ? y + 12 : y;
-            case "version"     -> Config.SHOW_VERSION.get()     ? y + 12 : y;
-            case "cheats"      -> Config.SHOW_CHEATS.get()      ? y + 12 : y;
-            case "last_played" -> Config.SHOW_LAST_PLAYED.get() ? y + this.font.lineHeight + 5 : y;
+            case "large_icon" -> Config.SHOW_LARGE_ICON.get() ? y + computeScaledLargeIconBoxHeight(s, pW) + 12 : y;
+            case "world_name" -> Config.SHOW_WORLD_NAME.get() ? y + scaledLineHeight() + 4 : y;
+            case "folder_name" -> Config.SHOW_FOLDER_NAME.get() ? y + scaledLineHeight() + 8 : y;
+            case "game_mode" -> Config.SHOW_GAME_MODE.get() ? y + singleInfoLineHeight() : y;
+            case "difficulty" -> Config.SHOW_DIFFICULTY.get() ? y + singleInfoLineHeight() : y;
+            case "time_played" -> Config.SHOW_TIME_PLAYED.get() ? y + singleInfoLineHeight() : y;
+            case "version" -> Config.SHOW_VERSION.get() ? y + singleInfoLineHeight() : y;
+            case "cheats" -> Config.SHOW_CHEATS.get() ? y + singleInfoLineHeight() : y;
+            case "last_played" -> Config.SHOW_LAST_PLAYED.get() ? y + scaledLineHeight() + 5 : y;
             default -> y;
         };
     }
@@ -508,20 +443,14 @@ public class ReimaginedSelectWorldScreen extends SelectWorldScreen {
     private void renderSidebarInfo(GuiGraphics gui) {
         if (this.cachedList == null || !(this.cachedList.getSelected() instanceof WorldSelectionList.WorldListEntry entry)) return;
         if (panelAnimationProgress < 0.001f) return;
-
         Minecraft mc = Objects.requireNonNull(this.minecraft);
         int mouseX = (int) (mc.mouseHandler.xpos() * this.width / mc.getWindow().getScreenWidth());
         int mouseY = (int) (mc.mouseHandler.ypos() * this.height / mc.getWindow().getScreenHeight());
-
         LevelSummary s = ((WorldListEntryAccessor) (Object) entry).getSummary();
-
-        int pL = panelLeft();
-        int pR = panelRight();
-        int cx = (pL + pR) / 2;
-
-        int y = 20 - (int) this.sidebarScroll;
+        int pL = panelLeft(), pR = panelRight(), cx = (pL + pR) / 2;
+        int alignOffset = computeAlignmentOffset();
+        int y = alignOffset - (int) this.sidebarScroll;
         int pW = this.panelWidth - 20;
-
         gui.enableScissor(pL, 0, pR, this.height);
 
         List<String> order = getOrder();
@@ -543,21 +472,17 @@ public class ReimaginedSelectWorldScreen extends SelectWorldScreen {
                 y = renderElement(gui, id, s, cx, y, pW, mouseX, mouseY);
             }
         }
-
         for (int i = 0; i < customLines.size(); i++) {
-            if (!renderedCustomIndices.contains(i)) {
-                y = renderCustomAnimatedLine(gui, customLines.get(i), worldVars, playerVars, s, cx, y, pW, mouseX, mouseY);
-            }
+            if (!renderedCustomIndices.contains(i)) y = renderCustomAnimatedLine(gui, customLines.get(i), worldVars, playerVars, s, cx, y, pW, mouseX, mouseY);
         }
-
         gui.disableScissor();
     }
 
     private String resolveGameMode(LevelSummary s) {
         if (s.isHardcore()) return Component.translatable("reimagined_world_select.value.hardcore").getString();
         String modeKey = switch (s.getGameMode()) {
-            case SURVIVAL  -> "reimagined_world_select.value.survival";
-            case CREATIVE  -> "reimagined_world_select.value.creative";
+            case SURVIVAL -> "reimagined_world_select.value.survival";
+            case CREATIVE -> "reimagined_world_select.value.creative";
             case ADVENTURE -> "reimagined_world_select.value.adventure";
             case SPECTATOR -> "reimagined_world_select.value.spectator";
         };
@@ -567,11 +492,7 @@ public class ReimaginedSelectWorldScreen extends SelectWorldScreen {
     private int renderElement(GuiGraphics gui, String id, LevelSummary s, int cx, int y, int pW, int mouseX, int mouseY) {
         return switch (id) {
             case "large_icon" -> {
-                if (Config.SHOW_LARGE_ICON.get()) {
-                    int iconHeight = pW * 9 / 16;
-                    GuiCompat.blit(gui, loadLargeIcon(s), cx - pW / 2, y, 0.0f, 0.0f, pW, iconHeight, pW, iconHeight);
-                    yield y + iconHeight + 12;
-                }
+                if (Config.SHOW_LARGE_ICON.get()) yield renderLargeIconElement(gui, s, cx, y, pW, mouseX, mouseY);
                 yield y;
             }
             case "world_name" -> {
@@ -583,20 +504,14 @@ public class ReimaginedSelectWorldScreen extends SelectWorldScreen {
                 yield y + 6;
             }
             case "game_mode" -> {
-                if (Config.SHOW_GAME_MODE.get()) {
-                    int modeColor = s.isHardcore() ? 0xFF5555 : 0xAAAAAA;
-                    yield renderAnimatedLine(gui, Component.translatable("reimagined_world_select.label.mode").getString(), resolveGameMode(s), cx, y, modeColor, pW, mouseX, mouseY);
-                }
+                if (Config.SHOW_GAME_MODE.get()) { int modeColor = s.isHardcore() ? 0xFF5555 : 0xAAAAAA; yield renderAnimatedLine(gui, Component.translatable("reimagined_world_select.label.mode").getString(), resolveGameMode(s), cx, y, modeColor, pW, mouseX, mouseY); }
                 yield y;
             }
             case "difficulty" -> {
                 if (Config.SHOW_DIFFICULTY.get()) {
                     Path worldDir = Objects.requireNonNull(this.minecraft).getLevelSource().getBaseDir().resolve(s.getLevelId());
                     WorldInfoHelper.DifficultyInfo difficultyInfo = WorldInfoHelper.readDifficulty(worldDir);
-                    if (difficultyInfo != null) {
-                        DifficultyRenderData data = getDifficultyRenderData(difficultyInfo);
-                        yield renderAnimatedLine(gui, Component.translatable("reimagined_world_select.label.difficulty").getString(), data.text(), cx, y, data.color(), pW, mouseX, mouseY);
-                    }
+                    if (difficultyInfo != null) { DifficultyRenderData data = getDifficultyRenderData(difficultyInfo); yield renderAnimatedLine(gui, Component.translatable("reimagined_world_select.label.difficulty").getString(), data.text(), cx, y, data.color(), pW, mouseX, mouseY); }
                 }
                 yield y;
             }
@@ -616,51 +531,134 @@ public class ReimaginedSelectWorldScreen extends SelectWorldScreen {
                 if (Config.SHOW_CHEATS.get()) {
                     Integer redColor = ChatFormatting.RED.getColor();
                     int cheatsColor = redColor != null && s.hasCommands() ? redColor : 0xAAAAAA;
-                    String cheatsValue = s.hasCommands()
-                            ? Component.translatable("reimagined_world_select.value.on").getString()
-                            : Component.translatable("reimagined_world_select.value.off").getString();
+                    String cheatsValue = s.hasCommands() ? Component.translatable("reimagined_world_select.value.on").getString() : Component.translatable("reimagined_world_select.value.off").getString();
                     yield renderAnimatedLine(gui, Component.translatable("reimagined_world_select.label.commands").getString(), cheatsValue, cx, y, cheatsColor, pW, mouseX, mouseY);
                 }
                 yield y;
             }
             case "last_played" -> {
-                if (Config.SHOW_LAST_PLAYED.get()) {
-                    String dateStr = "(" + dateFormat.format(new Date(s.getLastPlayed())) + ")";
-                    yield drawScaled(gui, dateStr, cx, y + 3, 0x777777, pW, false, true) + 5;
-                }
+                if (Config.SHOW_LAST_PLAYED.get()) { String dateStr = "(" + dateFormat.format(new Date(s.getLastPlayed())) + ")"; yield drawScaled(gui, dateStr, cx, y + 3, 0x777777, pW, false, true) + 5; }
                 yield y;
             }
             default -> y;
         };
     }
 
-    private int renderCustomAnimatedLine(GuiGraphics gui, Config.CustomLineConfig line,
-                                         Map<String, String> worldVars, Map<String, String> playerVars,
-                                         LevelSummary s, int cx, int y, int maxWidth, int mouseX, int mouseY) {
+    private int computeScaledLargeIconBoxHeight(LevelSummary s, int pW) {
+        float scale = (float) Config.LARGE_ICON_SCALE.get().doubleValue();
+        int scaledWidth = Math.max(16, Math.round(pW * scale));
+        int baseHeight = switch (Config.LARGE_ICON_ASPECT_RATIO.get()) {
+            case RATIO_16_9 -> scaledWidth * 9 / 16;
+            case RATIO_4_3 -> scaledWidth * 3 / 4;
+            case RATIO_1_1 -> scaledWidth;
+        };
+        return Math.max(32, baseHeight);
+    }
+
+    private int renderLargeIconElement(GuiGraphics gui, LevelSummary s, int cx, int y, int pW, int mouseX, int mouseY) {
+        float scale = (float) Config.LARGE_ICON_SCALE.get().doubleValue();
+        int scaledWidth = Math.max(16, Math.round(pW * scale));
+        int boxHeight = computeScaledLargeIconBoxHeight(s, pW);
+        int boxX = cx - scaledWidth / 2;
+        int boxY = y;
+
+        gui.enableScissor(boxX, boxY, boxX + scaledWidth, boxY + boxHeight);
+
+        CustomIconManager.DisplayedIcon custom = CustomIconManager.getDisplayedIcon(s.getLevelId());
+        if (custom.isPresent()) {
+            for (CustomIconManager.IconLayer layer : custom.layers()) {
+                renderTexturedLayer(gui, layer.texture(), layer.width(), layer.height(), boxX, boxY, scaledWidth, boxHeight, layer.alpha());
+            }
+        } else {
+            LoadedImage fallback = loadFallbackLargeImage(s);
+            renderTexturedLayer(gui, fallback.location(), fallback.width(), fallback.height(), boxX, boxY, scaledWidth, boxHeight, 1.0f);
+        }
+
+        gui.disableScissor();
+        renderCustomIconFolderButton(gui, boxX, boxY, scaledWidth, boxHeight, mouseX, mouseY);
+        return y + boxHeight + 12;
+    }
+
+    private void renderTexturedLayer(GuiGraphics gui, ResourceLocation texture, int sourceWidth, int sourceHeight, int boxX, int boxY, int boxWidth, int boxHeight, float alpha) {
+        if (sourceWidth <= 0 || sourceHeight <= 0 || alpha <= 0.0f) return;
+        RenderSystem.enableBlend();
+        RenderSystem.setShaderColor(1.0f, 1.0f, 1.0f, alpha);
+
+        Config.LargeIconDisplayMode mode = Config.LARGE_ICON_DISPLAY_MODE.get();
+        switch (mode) {
+            case STRETCH -> GuiCompat.blit(gui, texture, boxX, boxY, 0.0f, 0.0f, boxWidth, boxHeight, boxWidth, boxHeight);
+            case CROP -> {
+                float scaleX = (float) boxWidth / sourceWidth;
+                float scaleY = (float) boxHeight / sourceHeight;
+                float cropScale = Math.max(scaleX, scaleY);
+                int drawWidth = Math.max(1, Math.round(sourceWidth * cropScale));
+                int drawHeight = Math.max(1, Math.round(sourceHeight * cropScale));
+                int drawX = boxX + (boxWidth - drawWidth) / 2;
+                int drawY = boxY + (boxHeight - drawHeight) / 2;
+                GuiCompat.blit(gui, texture, drawX, drawY, 0.0f, 0.0f, drawWidth, drawHeight, drawWidth, drawHeight);
+            }
+        }
+
+        RenderSystem.setShaderColor(1.0f, 1.0f, 1.0f, 1.0f);
+        RenderSystem.disableBlend();
+    }
+
+    private void renderCustomIconFolderButton(GuiGraphics gui, int boxX, int boxY, int boxWidth, int boxHeight, int mouseX, int mouseY) {
+        Rect rect = new Rect(boxX + boxWidth - 16, boxY + 4, 12, 12);
+        boolean hovered = rect.contains(mouseX, mouseY);
+        gui.fill(rect.x(), rect.y(), rect.x() + rect.width(), rect.y() + rect.height(), hovered ? 0xC0303030 : 0x90202020);
+        GuiCompat.drawCenteredString(gui, this.font, "+", rect.x() + rect.width() / 2, rect.y() + 2, hovered ? 0xFFFFFF : 0xDDDDDD);
+    }
+
+    @Nullable
+    private Rect getLargeIconRect(LevelSummary summary) {
+        if (!Config.SHOW_LARGE_ICON.get() || panelAnimationProgress < 0.001f) return null;
+        int pL = panelLeft(), pR = panelRight(), cx = (pL + pR) / 2;
+        int alignOffset = computeAlignmentOffset();
+        int y = alignOffset - (int) this.sidebarScroll;
+        int pW = this.panelWidth - 20;
+        for (String id : getOrder()) {
+            if ("large_icon".equals(id)) {
+                float scale = (float) Config.LARGE_ICON_SCALE.get().doubleValue();
+                int scaledWidth = Math.max(16, Math.round(pW * scale));
+                int height = computeScaledLargeIconBoxHeight(summary, pW);
+                return new Rect(cx - scaledWidth / 2, y, scaledWidth, height);
+            }
+            y = addHeightForElement(id, y, pW, summary);
+        }
+        return null;
+    }
+
+    @Nullable
+    private Rect getLargeIconButtonRect() {
+        LevelSummary summary = getSelectedSummary();
+        if (summary == null) return null;
+        Rect iconRect = getLargeIconRect(summary);
+        if (iconRect == null) return null;
+        return new Rect(iconRect.x() + iconRect.width() - 16, iconRect.y() + 4, 12, 12);
+    }
+
+    private int renderCustomAnimatedLine(GuiGraphics gui, Config.CustomLineConfig line, Map<String, String> worldVars, Map<String, String> playerVars, LevelSummary s, int cx, int y, int maxWidth, int mouseX, int mouseY) {
         if (line.isEmpty()) return y;
         Map<String, String> selectedVars = line.source() == Config.VariableSource.PLAYER ? playerVars : worldVars;
         String rawVar = selectedVars.get("var" + line.varIndex());
         String interpretedVar = interpretVar(rawVar, line.mode());
-
         String label = line.label();
         if (line.hasLangLabel()) label = label.replace(line.getLangLabelPlaceholder(), Component.translatable(line.getLangLabelKey()).getString());
-
         String format = line.format();
         if (line.hasLangFormat()) format = format.replace(line.getLangFormatPlaceholder(), Component.translatable(line.getLangFormatKey()).getString());
-
         String parsedValue = parsePlaceholders(format, s).replace("%var%", interpretedVar);
         if (!label.isEmpty() && !label.endsWith(" ")) label += ": ";
-
         return renderAnimatedLine(gui, label, parsedValue, cx, y, maxWidth, mouseX, mouseY);
     }
 
     private String interpretVar(@Nullable String rawVar, Config.VarMode mode) {
         if (mode == Config.VarMode.VALUE) return rawVar == null ? "" : rawVar;
-        double numericValue = 0;
+        double numericValue = 0.0;
         try { if (rawVar != null && !rawVar.isEmpty()) numericValue = Double.parseDouble(rawVar); } catch (NumberFormatException ignored) {}
         return switch (mode) {
             case BOOLEAN -> numericValue >= 1 ? Component.translatable("reimagined_world_select.value.true").getString() : Component.translatable("reimagined_world_select.value.false").getString();
-            case ON_OFF  -> numericValue >= 1 ? Component.translatable("reimagined_world_select.value.on").getString()   : Component.translatable("reimagined_world_select.value.off").getString();
+            case ON_OFF -> numericValue >= 1 ? Component.translatable("reimagined_world_select.value.on").getString() : Component.translatable("reimagined_world_select.value.off").getString();
             default -> rawVar == null ? "" : rawVar;
         };
     }
@@ -668,24 +666,22 @@ public class ReimaginedSelectWorldScreen extends SelectWorldScreen {
     private String parsePlaceholders(String text, LevelSummary s) {
         if (text.isEmpty()) return "";
         return text
-                .replace("%name%",     s.getLevelName())
-                .replace("%id%",       s.getLevelId())
-                .replace("%mode%",     resolveGameMode(s))
-                .replace("%version%",  s.levelVersion().minecraftVersionName())
-                .replace("%cheats%",   s.hasCommands() ? Component.translatable("reimagined_world_select.value.on").getString()  : Component.translatable("reimagined_world_select.value.off").getString())
-                .replace("%hardcore%", s.isHardcore()  ? Component.translatable("reimagined_world_select.value.yes").getString() : Component.translatable("reimagined_world_select.value.no").getString());
+                .replace("%name%", s.getLevelName()).replace("%id%", s.getLevelId())
+                .replace("%mode%", resolveGameMode(s)).replace("%version%", s.levelVersion().minecraftVersionName())
+                .replace("%cheats%", s.hasCommands() ? Component.translatable("reimagined_world_select.value.on").getString() : Component.translatable("reimagined_world_select.value.off").getString())
+                .replace("%hardcore%", s.isHardcore() ? Component.translatable("reimagined_world_select.value.yes").getString() : Component.translatable("reimagined_world_select.value.no").getString());
     }
 
     private String formatPlayTime(long ticks) {
         double minutes = ticks / 20.0 / 60.0;
         double value; String unit;
         switch (Config.TIME_PLAYED_FORMAT.get()) {
-            case MINUTES -> { value = minutes;                        unit = Component.translatable("reimagined_world_select.time.minutes").getString(); }
-            case HOURS   -> { value = minutes / 60.0;                 unit = Component.translatable("reimagined_world_select.time.hours").getString(); }
-            case DAYS    -> { value = minutes / 60.0 / 24.0;         unit = Component.translatable("reimagined_world_select.time.days").getString(); }
-            case WEEKS   -> { value = minutes / 60.0 / 24.0 / 7.0;  unit = Component.translatable("reimagined_world_select.time.weeks").getString(); }
-            case MONTHS  -> { value = minutes / 60.0 / 24.0 / 30.0; unit = Component.translatable("reimagined_world_select.time.months").getString(); }
-            case YEARS   -> { value = minutes / 60.0 / 24.0 / 365.0; unit = Component.translatable("reimagined_world_select.time.years").getString(); }
+            case MINUTES -> { value = minutes; unit = Component.translatable("reimagined_world_select.time.minutes").getString(); }
+            case HOURS -> { value = minutes / 60.0; unit = Component.translatable("reimagined_world_select.time.hours").getString(); }
+            case DAYS -> { value = minutes / 60.0 / 24.0; unit = Component.translatable("reimagined_world_select.time.days").getString(); }
+            case WEEKS -> { value = minutes / 60.0 / 24.0 / 7.0; unit = Component.translatable("reimagined_world_select.time.weeks").getString(); }
+            case MONTHS -> { value = minutes / 60.0 / 24.0 / 30.0; unit = Component.translatable("reimagined_world_select.time.months").getString(); }
+            case YEARS -> { value = minutes / 60.0 / 24.0 / 365.0; unit = Component.translatable("reimagined_world_select.time.years").getString(); }
             default -> throw new IllegalStateException("Unexpected value: " + Config.TIME_PLAYED_FORMAT.get());
         }
         String formatted = value >= 100 ? String.format(Locale.ROOT, "%.0f", value) : String.format(Locale.ROOT, "%.1f", value);
@@ -694,18 +690,17 @@ public class ReimaginedSelectWorldScreen extends SelectWorldScreen {
     }
 
     private int drawScaled(GuiGraphics g, String text, int x, int y, int color, int maxWidth, boolean bold, boolean italic) {
-        Style st = Style.EMPTY.withBold(bold).withItalic(italic);
-        FormattedCharSequence fcs = Component.literal(text).withStyle(st).getVisualOrderText();
-        float tw = this.font.width(fcs);
-        float scale = tw > maxWidth ? (float) maxWidth / tw : 1.0f;
-
+        Style style = Style.EMPTY.withBold(bold).withItalic(italic);
+        FormattedCharSequence sequence = Component.literal(text).withStyle(style).getVisualOrderText();
+        float textWidth = this.font.width(sequence);
+        float scale = panelTextScale();
+        if (textWidth > 0.0f && textWidth * scale > maxWidth) scale = (float) maxWidth / textWidth;
         PoseStack pose = GuiCompat.pose(g);
         pose.pushPose();
-        pose.translate(x, y + (this.font.lineHeight * (1.0f - scale) / 2.0f), 0);
+        pose.translate(x, y + (this.font.lineHeight * (1.0f - scale) / 2.0f), 0.0f);
         pose.scale(scale, scale, 1.0f);
-        GuiCompat.drawString(g, this.font, fcs, (int) (-tw / 2), 0, color, true);
+        GuiCompat.drawString(g, this.font, sequence, (int) (-textWidth / 2), 0, color, true);
         pose.popPose();
-
         return y + (int) (this.font.lineHeight * scale) + 2;
     }
 
@@ -715,13 +710,12 @@ public class ReimaginedSelectWorldScreen extends SelectWorldScreen {
 
     private int renderAnimatedLine(GuiGraphics g, String label, String value, int cx, int y, int valueColor, int maxWidth, int mouseX, int mouseY) {
         String full = label + value;
-        float tw = this.font.width(full);
-        float baseScale = tw > maxWidth ? (float) maxWidth / tw : 1.0f;
+        float textWidth = this.font.width(full);
+        float baseScale = panelTextScale();
+        if (textWidth > 0.0f && textWidth * baseScale > maxWidth) baseScale = (float) maxWidth / textWidth;
 
-        int pL = panelLeft();
-        int pR = panelRight();
-        boolean hovered = mouseX >= pL && mouseX <= pR && mouseY >= y - 2 && mouseY <= y + this.font.lineHeight + 2;
-
+        int pL = panelLeft(), pR = panelRight();
+        boolean hovered = mouseX >= pL && mouseX <= pR && mouseY >= y - 2 && mouseY <= y + scaledLineHeight() + 2;
         String animKey = label + "|" + value + "|" + y;
         float currentAnim = this.sidebarLineAnimations.getOrDefault(animKey, 0.0f);
         float targetAnim = Config.ENABLE_TEXT_HOVER_ANIMATION.get() && hovered ? 1.0f : 0.0f;
@@ -729,35 +723,47 @@ public class ReimaginedSelectWorldScreen extends SelectWorldScreen {
         if (Math.abs(currentAnim - targetAnim) < 0.01f) currentAnim = targetAnim;
         this.sidebarLineAnimations.put(animKey, currentAnim);
 
-        float finalScale = baseScale * Mth.lerp(currentAnim, 1.0f, 1.08f);
+        float hoverScale = Mth.lerp(currentAnim, 1.0f, 1.08f);
+        float finalScale = baseScale * hoverScale;
+        if (textWidth > 0.0f && textWidth * finalScale > maxWidth) finalScale = (float) maxWidth / textWidth;
 
         PoseStack pose = GuiCompat.pose(g);
         pose.pushPose();
-        pose.translate(cx, y, 0);
+        pose.translate(cx, y, 0.0f);
         pose.scale(finalScale, finalScale, 1.0f);
-
-        int startX = (int) (-tw / 2);
+        int startX = (int) (-textWidth / 2);
         GuiCompat.drawString(g, this.font, label, startX, 0, 0x555555, false);
         GuiCompat.drawString(g, this.font, value, startX + this.font.width(label), 0, valueColor, false);
-
         pose.popPose();
         return y + (int) (this.font.lineHeight * finalScale) + 2;
     }
 
-    @Nonnull public ResourceLocation loadIcon(LevelSummary s)      { return loadIconInternal(s, false); }
-    @Nonnull public ResourceLocation loadLargeIcon(LevelSummary s) { return loadIconInternal(s, true); }
+    @Nonnull
+    public ResourceLocation loadIcon(LevelSummary s) { return loadSmallIconImage(s).location(); }
 
     @Nonnull
-    private ResourceLocation loadIconInternal(LevelSummary s, boolean useLargeIcon) {
+    public ResourceLocation loadLargeIcon(LevelSummary s) {
+        CustomIconManager.DisplayedIcon custom = CustomIconManager.getDisplayedIcon(s.getLevelId());
+        if (custom.isPresent()) return custom.layers().getLast().texture();
+        return loadFallbackLargeImage(s).location();
+    }
+
+    @Nonnull
+    private LoadedImage loadSmallIconImage(LevelSummary s) { return loadStaticImage(s, false); }
+
+    @Nonnull
+    private LoadedImage loadFallbackLargeImage(LevelSummary s) { return loadStaticImage(s, true); }
+
+    @Nonnull
+    private LoadedImage loadStaticImage(LevelSummary s, boolean useLargeImage) {
         String levelId = s.getLevelId();
-        String safeId = levelId.toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9_./\\-]", "_").replaceAll("_+", "_");
-        long hash = levelId.hashCode() & 0xFFFFFFFFL;
-        String cacheKey = (useLargeIcon ? "large_" : "") + levelId;
-        if (iconCache.containsKey(cacheKey)) return iconCache.get(cacheKey);
+        String cacheKey = (useLargeImage ? "large_" : "") + levelId;
+        LoadedImage cached = this.staticTextureCache.get(cacheKey);
+        if (cached != null) return cached;
 
         Path worldDir = Objects.requireNonNull(this.minecraft).getLevelSource().getBaseDir().resolve(levelId);
         Path targetPath;
-        if (useLargeIcon) {
+        if (useLargeImage) {
             Path customLarge = worldDir.resolve("custom_large_icon.png");
             Path large = worldDir.resolve("large_icon.png");
             Path normal = worldDir.resolve("icon.png");
@@ -765,29 +771,35 @@ public class ReimaginedSelectWorldScreen extends SelectWorldScreen {
         } else {
             targetPath = worldDir.resolve("icon.png");
         }
+        if (!Files.exists(targetPath)) return DEFAULT_LOADED_ICON;
 
-        if (Files.exists(targetPath)) {
-            try (InputStream is = Files.newInputStream(targetPath)) {
-                DynamicTexture dt = TextureCompat.createFromImage(NativeImage.read(is));
-                String prefix = useLargeIcon ? "rws_large_" : "rws_icon_";
-                ResourceLocation rl = ResourceLocation.fromNamespaceAndPath("reimagined_world_select", prefix + safeId + "_" + hash);
-                Objects.requireNonNull(this.minecraft).getTextureManager().register(rl, dt);
-                iconCache.put(cacheKey, rl);
-                return rl;
-            } catch (Exception e) {
-                LOGGER.warn("Failed to load icon for world '{}': {}", levelId, e.getMessage());
-            }
+        try (InputStream is = Files.newInputStream(targetPath)) {
+            NativeImage image = NativeImage.read(is);
+            int width = image.getWidth();
+            int height = image.getHeight();
+            DynamicTexture texture = TextureCompat.createFromImage(image);
+            String safeId = levelId.toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9_./\\-]", "_").replaceAll("_+", "_");
+            long stamp = Files.getLastModifiedTime(targetPath).toMillis();
+            long hash = (stamp ^ targetPath.toString().hashCode()) & 0xFFFFFFFFL;
+            String prefix = useLargeImage ? "rws_large_" : "rws_icon_";
+            ResourceLocation location = ResourceLocation.fromNamespaceAndPath("reimagined_world_select", prefix + safeId + "_" + hash);
+            Objects.requireNonNull(this.minecraft).getTextureManager().register(location, texture);
+            LoadedImage loaded = new LoadedImage(location, width, height);
+            this.staticTextureCache.put(cacheKey, loaded);
+            return loaded;
+        } catch (Exception e) {
+            LOGGER.warn("Failed to load static image for world '{}': {}", levelId, e.getMessage());
+            return DEFAULT_LOADED_ICON;
         }
-        return DEFAULT_ICON;
     }
 
     private DifficultyRenderData getDifficultyRenderData(WorldInfoHelper.DifficultyInfo difficultyInfo) {
         String text; int color;
         switch (difficultyInfo.difficultyId()) {
             case 0 -> { text = Component.translatable("reimagined_world_select.value.peaceful").getString(); color = 0xFFFFFF; }
-            case 1 -> { text = Component.translatable("reimagined_world_select.value.easy").getString();     color = 0x55FF55; }
-            case 2 -> { text = Component.translatable("reimagined_world_select.value.normal").getString();   color = 0xFFFF55; }
-            case 3 -> { text = Component.translatable("reimagined_world_select.value.hard").getString();     color = 0xFF5555; }
+            case 1 -> { text = Component.translatable("reimagined_world_select.value.easy").getString(); color = 0x55FF55; }
+            case 2 -> { text = Component.translatable("reimagined_world_select.value.normal").getString(); color = 0xFFFF55; }
+            case 3 -> { text = Component.translatable("reimagined_world_select.value.hard").getString(); color = 0xFF5555; }
             default -> { text = Component.translatable("reimagined_world_select.value.unknown").getString(); color = 0xAAAAAA; }
         }
         if (difficultyInfo.locked()) { text += " " + Component.translatable("reimagined_world_select.value.locked").getString(); color = 0x555555; }
@@ -796,12 +808,21 @@ public class ReimaginedSelectWorldScreen extends SelectWorldScreen {
 
     @Override
     public void onClose() {
-        iconCache.forEach((key, loc) -> { if (!loc.equals(DEFAULT_ICON) && this.minecraft != null) this.minecraft.getTextureManager().release(loc); });
-        iconCache.clear();
-        sidebarLineAnimations.clear();
+        for (LoadedImage image : this.staticTextureCache.values()) {
+            if (!image.location().equals(DEFAULT_ICON) && this.minecraft != null) this.minecraft.getTextureManager().release(image.location());
+        }
+        this.staticTextureCache.clear();
+        this.sidebarLineAnimations.clear();
         RWSCustomInfoAPI.clearCache();
+        CustomIconManager.clear();
         super.onClose();
     }
 
     private record DifficultyRenderData(String text, int color) {}
+    private record LoadedImage(ResourceLocation location, int width, int height) {}
+    private record Rect(int x, int y, int width, int height) {
+        public boolean contains(double mouseX, double mouseY) {
+            return mouseX >= this.x && mouseX <= this.x + this.width && mouseY >= this.y && mouseY <= this.y + this.height;
+        }
+    }
 }

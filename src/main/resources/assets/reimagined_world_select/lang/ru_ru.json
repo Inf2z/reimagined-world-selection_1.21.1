@@ -1,5 +1,5 @@
 {
-  "reimagined_world_select.configuration.panel_settings": "Вид панели",
+  "reimagined_world_select.configuration.panel_design": "Вид панели",
   "reimagined_world_select.configuration.visible_information": "Видимая информация",
   "reimagined_world_select.configuration.internal": "Внутренние редакторы",
   "reimagined_world_select.configuration.element_animations": "Анимации",
@@ -12,6 +12,16 @@
   "reimagined_world_select.configuration.panel_alpha": "Прозрачность фона",
   "reimagined_world_select.configuration.panel_behaviour": "Поведение",
   "reimagined_world_select.configuration.panel_position": "Расположение",
+  "reimagined_world_select.configuration.panel_text_scale": "Масштаб текста",
+  "reimagined_world_select.configuration.panel_text_alignment": "Выравнивание текста",
+
+  "reimagined_world_select.configuration.large_icon_settings": "Настройки большого значка",
+  "reimagined_world_select.configuration.large_icon_aspect_ratio": "Соотношение сторон",
+  "reimagined_world_select.configuration.large_icon_display_mode": "Режим обработки",
+  "reimagined_world_select.configuration.large_icon_scale": "Масштаб",
+  "reimagined_world_select.configuration.custom_icon_slideshow": "Коллаж",
+  "reimagined_world_select.configuration.custom_icon_slideshow_interval_seconds": "Время для начала смены кадра в секундах",
+  "reimagined_world_select.configuration.custom_icon_slideshow_fade_seconds": "Время смены кадра в секундах",
 
   "reimagined_world_select.configuration.enable_world_hover_animation": "Анимация выбора мира",
   "reimagined_world_select.configuration.enable_text_hover_animation": "Анимация наведения на текст в панели",

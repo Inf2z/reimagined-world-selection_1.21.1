@@ -1,5 +1,5 @@
 {
-  "reimagined_world_select.configuration.panel_settings": "Panel Design",
+  "reimagined_world_select.configuration.panel_design": "Panel Design",
   "reimagined_world_select.configuration.visible_information": "Visible Information",
   "reimagined_world_select.configuration.internal": "Internal Editors",
   "reimagined_world_select.configuration.element_animations": "Element Animations",
@@ -12,11 +12,21 @@
   "reimagined_world_select.configuration.panel_alpha": "Background Transparency",
   "reimagined_world_select.configuration.panel_behaviour": "Behaviour",
   "reimagined_world_select.configuration.panel_position": "Position",
+  "reimagined_world_select.configuration.panel_text_scale": "Text Scale",
+  "reimagined_world_select.configuration.panel_text_alignment": "Text Alignment",
+
+  "reimagined_world_select.configuration.large_icon_settings": "Large Icon Settings",
+  "reimagined_world_select.configuration.large_icon_aspect_ratio": "Aspect Ratio",
+  "reimagined_world_select.configuration.large_icon_display_mode": "Display Mode",
+  "reimagined_world_select.configuration.large_icon_scale": "Scale",
+  "reimagined_world_select.configuration.custom_icon_slideshow": "Slideshow",
+  "reimagined_world_select.configuration.custom_icon_slideshow_interval_seconds": "Slideshow Interval in Seconds",
+  "reimagined_world_select.configuration.custom_icon_slideshow_fade_seconds": "Slideshow Fade in Seconds",
 
   "reimagined_world_select.configuration.enable_world_hover_animation": "World Selection Animation",
   "reimagined_world_select.configuration.enable_text_hover_animation": "Panel Text Hover Animation",
 
-  "reimagined_world_select.no_worlds": "No worlds found. Click 'Create New World' to create your first World!",
+  "reimagined_world_select.no_worlds": "No worlds found :/",
   "reimagined_world_select.configuration.no_worlds_behaviour": "No Worlds Behaviour",
   "reimagined_world_select.configuration.no_worlds_behaviour.tooltip": "LIST - show empty world list, GENERATE - open world creation screen",
 
