@@ -26,7 +26,7 @@
   "reimagined_world_select.configuration.enable_world_hover_animation": "Анимация выбора мира",
   "reimagined_world_select.configuration.enable_text_hover_animation": "Анимация наведения на текст в панели",
 
-  "reimagined_world_select.no_worlds": "Миры не найдены. Нажмите 'Создать новый мир' чтобы создать свой первый мир!",
+  "reimagined_world_select.no_worlds": "Миры не найдены :/",
   "reimagined_world_select.configuration.no_worlds_behaviour": "Поведение игры при отсутствии миров",
   "reimagined_world_select.configuration.no_worlds_behaviour.tooltip": "LIST - показывать пустой список миров, GENERATE - открывать меню создания мира",
 
